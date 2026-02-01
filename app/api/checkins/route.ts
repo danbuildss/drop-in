@@ -20,12 +20,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if event exists and is not locked
-    const { data: event } = await supabaseAdmin
-      .from("events")
-      .select("id, is_locked, max_attendees")
-      .eq("id", eventId)
-      .single();
+   const { data: event } = await supabaseAdmin
+  .from("events")
+  .select("id, is_locked, max_attendees")
+  .eq("id", eventId)
+  .single<{ id: string; is_locked: boolean; max_attendees: number | null }>();
 
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
