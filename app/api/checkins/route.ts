@@ -6,7 +6,12 @@
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,16 +25,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-   const { data: event } = await supabaseAdmin
-  .from("events")
-  .select("id, is_locked, max_attendees")
-  .eq("id", eventId)
-  .single<{ id: string; is_locked: boolean; max_attendees: number | null }>();
+    // Check if event exists and is not locked
+    const { data: event } = await supabase
+      .from("events")
+      .select("id, is_locked, max_attendees")
+      .eq("id", eventId)
+      .single();
 
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
-    if (event.is_locked) {
+    if ((event as any).is_locked) {
       return NextResponse.json(
         { error: "Event is locked — giveaway already executed" },
         { status: 403 }
@@ -37,13 +43,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Check capacity
-    if (event.max_attendees !== null) {
-      const { count } = await supabaseAdmin
+    if ((event as any).max_attendees !== null) {
+      const { count } = await supabase
         .from("check_ins")
         .select("id", { count: "exact", head: true })
         .eq("event_id", eventId);
 
-      if (count !== null && count >= event.max_attendees) {
+      if (count !== null && count >= (event as any).max_attendees) {
         return NextResponse.json(
           { error: "Event is at full capacity" },
           { status: 403 }
@@ -52,12 +58,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert check-in
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("check_ins")
       .insert({
         event_id: eventId,
         wallet_address: walletAddress,
-      })
+      } as any)
       .select()
       .single();
 
@@ -88,7 +94,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("check_ins")
     .select("id, event_id, wallet_address, checked_in_at")
     .eq("event_id", eventId)
