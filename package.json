@@ -1,0 +1,31 @@
+{
+  "name": "dropin-giveaway",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@coinbase/onchainkit": "^0.38.0",
+    "@supabase/supabase-js": "^2.49.0",
+    "@tanstack/react-query": "^5.65.0",
+    "frog": "^0.18.0",
+    "hono": "^4.6.0",
+    "next": "^15.1.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.23.0",
+    "wagmi": "^2.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
