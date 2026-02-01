@@ -9,7 +9,12 @@
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,12 +28,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("giveaways")
       .insert({
         event_id: eventId,
         winner_count: winnerCount,
-      })
+      } as any)
       .select()
       .single();
 
@@ -60,13 +65,13 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabase
       .from("giveaways")
       .update({
         winners,
         tx_hash: txHash,
         executed_at: new Date().toISOString(),
-      })
+      } as any)
       .eq("id", giveawayId)
       .select()
       .single();
@@ -92,7 +97,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("giveaways")
     .select("*")
     .eq("event_id", eventId)
