@@ -26,7 +26,7 @@
 // ─────────────────────────────────────────────────────────────
 
 /** @jsxImportSource frog/jsx */
-import { Frog } from "frog";
+import { Frog, Button, TextInput } from "frog";
 import { handle } from "frog/next";
 import {
   createPublicClient,

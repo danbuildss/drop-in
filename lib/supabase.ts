@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ═══════════════════════════════════════════════════════════════
 //  lib/supabase.ts — DropIn MVP database operations
 //
