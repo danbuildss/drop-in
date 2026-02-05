@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  app/layout.tsx — Root layout with all Web3 providers
+//  app/layout.tsx — Root layout with Privy provider
 // ─────────────────────────────────────────────────────────────
 
 import type { Metadata } from "next";
@@ -7,15 +7,20 @@ import { Providers } from "@/lib/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DropIn Giveaway",
-  description: "On-chain giveaway draws on Base",
+  title: "DropIn — On-Chain Giveaway Draws",
+  description: "The fairest way to run giveaways at crypto events — verified on-chain on Base.",
+  openGraph: {
+    title: "DropIn — On-Chain Giveaway Draws",
+    description: "The fairest way to run giveaways at crypto events — verified on-chain on Base.",
+    type: "website",
+  },
 };
 
-export default function RootLayout({
-  children,
-}: {
+interface RootLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>

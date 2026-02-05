@@ -4,12 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +18,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("events")
       .insert({
         chain_event_id: chainEventId,
@@ -31,7 +26,7 @@ export async function POST(req: NextRequest) {
         description: description ?? null,
         organizer,
         max_attendees: maxAttendees ?? null,
-      } as any)
+      })
       .select()
       .single();
 
@@ -57,7 +52,7 @@ export async function GET(req: NextRequest) {
   const organizer = searchParams.get("organizer");
 
   if (chainEventId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("v_event_summary")
       .select("*")
       .eq("chain_event_id", Number(chainEventId))
@@ -70,7 +65,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (organizer) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("events")
       .select("*")
       .ilike("organizer", organizer)

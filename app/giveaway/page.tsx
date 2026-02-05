@@ -1,1543 +1,819 @@
 // ─────────────────────────────────────────────────────────────
 //  app/giveaway/page.tsx — Organizer Dashboard
-//
-//  Design: Telegram Mini App aesthetic matching /event/[eventId].
-//  Dark cards, rounded surfaces, amber gradients, compact mobile
-//  layout, playful badges, bottom-anchored CTAs.
-//
-//  Flow:
-//    1. Connect wallet
-//    2. Enter chain event ID → loads on-chain + off-chain data
-//    3. View attendee list (from Supabase)
-//    4. Set winner count → "Run Giveaway" executes on-chain tx
-//    5. After tx success → decode GiveawayWinners event → reveal
-//       winners with staggered animation → save to Supabase
 // ─────────────────────────────────────────────────────────────
 
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useAccount, useReadContract } from "wagmi";
-import { base } from "wagmi/chains";
-import { decodeEventLog, type Address } from "viem";
+import { useState, useEffect, useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
-} from "@coinbase/onchainkit/wallet";
-import { Avatar, Name, Identity } from "@coinbase/onchainkit/identity";
+  Calendar,
+  Users,
+  Trophy,
+  Plus,
+  ChevronRight,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Copy,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
 import {
-  Transaction,
-  TransactionButton,
-  TransactionStatus,
-  TransactionStatusLabel,
-  TransactionStatusAction,
-} from "@coinbase/onchainkit/transaction";
-import type { LifecycleStatus } from "@coinbase/onchainkit/transaction";
-
-import {
-  buildRunGiveawayCalls,
-  buildCreateEventCalls,
-  getEventReadConfig,
-  getAttendeesReadConfig,
-  dropInGiveawayAbi,
-  type ContractCall,
-  type EventView,
-} from "@/lib/calls";
-import {
-  apiGetEventSummary,
-  apiGetAttendees,
-  apiCreateGiveaway,
-  apiFinalizeGiveaway,
-  apiGetGiveaway,
+  apiGetEventsByOrganizer,
   apiCreateEvent,
+  apiGetEventSummary,
+  type ApiEvent,
   type ApiEventSummary,
-  type ApiCheckIn,
 } from "@/lib/api";
+import {
+  createPublicClient,
+  http,
+  type Address,
+} from "viem";
+import { base } from "viem/chains";
+import {
+  DROP_IN_GIVEAWAY_ADDRESS,
+  dropInGiveawayAbi,
+} from "@/lib/calls";
+import type { CSSProperties, FormEvent } from "react";
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Constants
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const BASE_CHAIN_ID = base.id;
-const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
-
-type DashView = "overview" | "attendees" | "draw";
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Page
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export default function OrganizerDashboard() {
-  const { address, isConnected } = useAccount();
-
-  // ── State ───────────────────────────────────────────────────
-  const [eventIdInput, setEventIdInput] = useState("");
-  const [activeView, setActiveView] = useState<DashView>("overview");
-  const [winnerCount, setWinnerCount] = useState("");
-  const [winners, setWinners] = useState<string[]>([]);
-  const [revealedCount, setRevealedCount] = useState(0);
-  const [drawState, setDrawState] = useState<
-    "idle" | "pending" | "confirming" | "success" | "error"
-  >("idle");
-  const [drawError, setDrawError] = useState("");
-
-  // Off-chain data
-  const [dbEvent, setDbEvent] = useState<ApiEventSummary | null>(null);
-  const [attendees, setAttendees] = useState<ApiCheckIn[]>([]);
-  const [dbLoading, setDbLoading] = useState(false);
-
-  // ── Derived ─────────────────────────────────────────────────
-  const eventIdBn = useMemo(() => {
-    try {
-      return BigInt(eventIdInput || "0");
-    } catch {
-      return 0n;
-    }
-  }, [eventIdInput]);
-
-  const winnerCountBn = useMemo(() => {
-    try {
-      return BigInt(winnerCount || "0");
-    } catch {
-      return 0n;
-    }
-  }, [winnerCount]);
-
-  // ── On-chain reads ──────────────────────────────────────────
-  const { data: eventData, refetch: refetchOnChain } = useReadContract({
-    ...getEventReadConfig(eventIdBn),
-    query: { enabled: eventIdBn > 0n },
-  }) as {
-    data: [Address, bigint, boolean] | undefined;
-    refetch: () => void;
-  };
-
-  const { data: onChainAttendees } = useReadContract({
-    ...getAttendeesReadConfig(eventIdBn),
-    query: { enabled: eventIdBn > 0n },
-  }) as { data: Address[] | undefined };
-
-  const onChainEvent: EventView | null = eventData
-    ? {
-        organizer: eventData[0],
-        attendeeCount: eventData[1],
-        giveawayExecuted: eventData[2],
-      }
-    : null;
-
-  const eventExists =
-    onChainEvent !== null && onChainEvent.organizer !== ZERO_ADDR;
-  const isOrganizer =
-    eventExists && address
-      ? onChainEvent!.organizer.toLowerCase() === address.toLowerCase()
-      : false;
-
-  // ── Load off-chain data when event ID changes ───────────────
-  useEffect(() => {
-    if (eventIdBn <= 0n) {
-      setDbEvent(null);
-      setAttendees([]);
-      return;
-    }
-
-    setDbLoading(true);
-    apiGetEventSummary(Number(eventIdBn))
-      .then((data) => {
-        setDbEvent(data);
-        return apiGetAttendees(data.id);
-      })
-      .then((list) => {
-        setAttendees(list);
-        setDbLoading(false);
-      })
-      .catch(() => {
-        setDbEvent(null);
-        setAttendees([]);
-        setDbLoading(false);
-      });
-  }, [eventIdBn]);
-
-  // ── Refresh helpers ─────────────────────────────────────────
-  const refreshAll = useCallback(async () => {
-    refetchOnChain();
-    if (eventIdBn > 0n) {
-      try {
-        const ev = await apiGetEventSummary(Number(eventIdBn));
-        setDbEvent(ev);
-        const list = await apiGetAttendees(ev.id);
-        setAttendees(list);
-      } catch {}
-    }
-  }, [eventIdBn, refetchOnChain]);
-
-  // ── Giveaway calls ─────────────────────────────────────────
-  const giveawayCalls: ContractCall[] = useMemo(
-    () =>
-      buildRunGiveawayCalls({
-        eventId: eventIdBn,
-        winnerCount: winnerCountBn,
-      }),
-    [eventIdBn, winnerCountBn]
-  );
-
-  const createEventCalls: ContractCall[] = useMemo(
-    () => buildCreateEventCalls({ eventId: eventIdBn }),
-    [eventIdBn]
-  );
-
-  // ── Winner reveal animation ─────────────────────────────────
-  useEffect(() => {
-    if (drawState !== "success" || winners.length === 0) return;
-    setRevealedCount(0);
-    let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      setRevealedCount(i);
-      if (i >= winners.length) clearInterval(interval);
-    }, 400);
-    return () => clearInterval(interval);
-  }, [drawState, winners]);
-
-  // ── Transaction lifecycle handler ───────────────────────────
-  const handleTxStatus = useCallback(
-    async (status: LifecycleStatus) => {
-      if (status.statusName === "transactionPending") {
-        setDrawState("pending");
-      }
-
-      if (status.statusName === "success") {
-        setDrawState("confirming");
-
-        // Try to decode winners from tx receipt logs
-        try {
-          const receipts = (status as any).statusData?.transactionReceipts;
-          if (receipts && receipts.length > 0) {
-            const receipt = receipts[0];
-            for (const log of receipt.logs) {
-              try {
-                const decoded = decodeEventLog({
-                  abi: dropInGiveawayAbi,
-                  data: log.data,
-                  topics: log.topics,
-                });
-                if (
-                  decoded.eventName === "GiveawayWinners" &&
-                  decoded.args
-                ) {
-                  const w = (decoded.args as any).winners as string[];
-                  setWinners(w);
-
-                  // Save to Supabase — create or fetch existing
-                  if (dbEvent) {
-                    try {
-                      let giveawayId: string;
-                      try {
-                        const giveaway = await apiCreateGiveaway({
-                          eventId: dbEvent.id,
-                          winnerCount: Number(winnerCountBn),
-                        });
-                        giveawayId = giveaway.id;
-                      } catch {
-                        // 409 = already exists, fetch it
-                        const existing = await apiGetGiveaway(dbEvent.id);
-                        giveawayId = existing?.id ?? "";
-                      }
-                      if (giveawayId) {
-                        await apiFinalizeGiveaway({
-                          giveawayId,
-                          winners: w,
-                          txHash: receipt.transactionHash,
-                        });
-                      }
-                    } catch {}
-                  }
-
-                  setDrawState("success");
-                  refreshAll();
-                  return;
-                }
-              } catch {}
-            }
-          }
-        } catch {}
-
-        // Fallback: if we couldn't decode, still mark success
-        setDrawState("success");
-        refreshAll();
-      }
-
-      if (status.statusName === "error") {
-        setDrawState("error");
-        setDrawError("Transaction failed. Please try again.");
-      }
-    },
-    [dbEvent, winnerCountBn, refreshAll]
-  );
-
-  // ── Create event on-chain + off-chain handler ───────────────
-  const handleCreateTxStatus = useCallback(
-    async (status: LifecycleStatus) => {
-      if (status.statusName === "success" && address) {
-        try {
-          await apiCreateEvent({
-            chainEventId: Number(eventIdBn),
-            title: `Event #${eventIdBn}`,
-            organizer: address,
-          });
-        } catch {}
-        refreshAll();
-      }
-    },
-    [address, eventIdBn, refreshAll]
-  );
-
-  // ── Helpers ─────────────────────────────────────────────────
-  const trunc = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
-  const attendeeCount = dbEvent
-    ? dbEvent.attendee_count
-    : onChainEvent
-    ? Number(onChainEvent.attendeeCount)
-    : 0;
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  Not connected
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  if (!isConnected) {
-    return (
-      <div style={s.shell}>
-        <div style={s.topGlow} />
-        <div style={s.heroConnect}>
-          <div style={s.heroRing}>
-            <div style={s.heroRingInner}>
-              <span style={s.heroEmoji}>🎰</span>
-            </div>
-          </div>
-          <h1 style={s.heroTitle}>Organizer Dashboard</h1>
-          <p style={s.heroSub}>
-            Connect your wallet to manage events and draw giveaway winners.
-          </p>
-          <div style={{ marginTop: 20 }}>
-            <Wallet>
-              <ConnectWallet />
-            </Wallet>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  Connected — Dashboard
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  return (
-    <div style={s.shell}>
-      <div style={s.topGlow} />
-
-      {/* ── Header ──────────────────────────────────────────── */}
-      <header style={s.header}>
-        <div style={s.headerLeft}>
-          <span style={s.headerDot} />
-          <span style={s.headerLabel}>Dashboard</span>
-        </div>
-        <Wallet>
-          <ConnectWallet>
-            <Avatar className="h-5 w-5" />
-            <Name />
-          </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-              <Avatar />
-              <Name />
-            </Identity>
-            <WalletDropdownDisconnect />
-          </WalletDropdown>
-        </Wallet>
-      </header>
-
-      {/* ── Event ID input ──────────────────────────────────── */}
-      <div style={s.inputCard}>
-        <label style={s.inputLabel}>Event ID</label>
-        <div style={s.inputRow}>
-          <input
-            type="number"
-            min="1"
-            placeholder="Enter chain event ID"
-            value={eventIdInput}
-            onChange={(e) => {
-              setEventIdInput(e.target.value);
-              setDrawState("idle");
-              setWinners([]);
-            }}
-            style={s.input}
-          />
-          {eventExists && (
-            <div style={s.liveBadge}>
-              <span style={s.liveDot} />
-              Live
-            </div>
-          )}
-          {dbLoading && eventIdBn > 0n && (
-            <div style={s.miniSpinner} />
-          )}
-        </div>
-      </div>
-
-      {/* ── No event found ──────────────────────────────────── */}
-      {eventIdBn > 0n && !eventExists && !dbLoading && (
-        <div style={s.emptyCard}>
-          <span style={{ fontSize: "1.6rem", marginBottom: 8 }}>📭</span>
-          <p style={s.emptyText}>
-            Event #{eventIdInput} not found on-chain.
-          </p>
-          <p style={s.emptyHint}>Create it first:</p>
-          <div style={{ marginTop: 12, width: "100%" }}>
-            <Transaction
-              chainId={BASE_CHAIN_ID}
-              calls={createEventCalls}
-              onStatus={handleCreateTxStatus}
-            >
-              <TransactionButton text="Create Event On-Chain" />
-              <TransactionStatus>
-                <TransactionStatusLabel />
-                <TransactionStatusAction />
-              </TransactionStatus>
-            </Transaction>
-          </div>
-        </div>
-      )}
-
-      {/* ── Event loaded ────────────────────────────────────── */}
-      {eventExists && (
-        <>
-          {/* Not organizer warning */}
-          {!isOrganizer && (
-            <div style={s.warnCard}>
-              <span style={s.warnIcon}>⚠️</span>
-              <div>
-                <p style={s.warnTitle}>Not your event</p>
-                <p style={s.warnSub}>
-                  Connected as {trunc(address!)} but organizer is{" "}
-                  {trunc(onChainEvent!.organizer)}.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Tab bar */}
-          <nav style={s.tabBar}>
-            {(
-              [
-                ["overview", "Overview"],
-                ["attendees", "Attendees"],
-                ["draw", "Draw"],
-              ] as [DashView, string][]
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setActiveView(key)}
-                style={{
-                  ...s.tab,
-                  ...(activeView === key ? s.tabActive : {}),
-                }}
-              >
-                {label}
-                {key === "attendees" && (
-                  <span style={s.tabBadge}>{attendeeCount}</span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {/* ━━━ OVERVIEW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-          {activeView === "overview" && (
-            <div style={s.panel}>
-              {/* Stats grid */}
-              <div style={s.statsGrid}>
-                <div style={s.statCard}>
-                  <span style={s.statEmoji}>👥</span>
-                  <span style={s.statNumber}>{attendeeCount}</span>
-                  <span style={s.statLabel}>Checked In</span>
-                </div>
-                <div style={s.statCard}>
-                  <span style={s.statEmoji}>🎯</span>
-                  <span style={s.statNumber}>
-                    {dbEvent?.max_attendees ?? "∞"}
-                  </span>
-                  <span style={s.statLabel}>Capacity</span>
-                </div>
-                <div style={s.statCard}>
-                  <span style={s.statEmoji}>
-                    {onChainEvent!.giveawayExecuted ? "✅" : "⏳"}
-                  </span>
-                  <span
-                    style={{
-                      ...s.statNumber,
-                      fontSize: "0.95rem",
-                      color: onChainEvent!.giveawayExecuted
-                        ? "var(--green)"
-                        : "var(--amber)",
-                    }}
-                  >
-                    {onChainEvent!.giveawayExecuted ? "Drawn" : "Pending"}
-                  </span>
-                  <span style={s.statLabel}>Giveaway</span>
-                </div>
-                <div style={s.statCard}>
-                  <span style={s.statEmoji}>🔗</span>
-                  <span style={{ ...s.statNumber, fontSize: "0.95rem" }}>
-                    #{eventIdInput}
-                  </span>
-                  <span style={s.statLabel}>Chain ID</span>
-                </div>
-              </div>
-
-              {/* Organizer row */}
-              <div style={s.detailRow}>
-                <span style={s.detailLabel}>Organizer</span>
-                <span style={s.detailValue}>
-                  {trunc(onChainEvent!.organizer)}
-                  {isOrganizer && <span style={s.youTag}>you</span>}
-                </span>
-              </div>
-
-              {/* On-chain attendees */}
-              <div style={s.detailRow}>
-                <span style={s.detailLabel}>On-chain attendees</span>
-                <span style={s.detailValue}>
-                  {onChainAttendees?.length ?? 0}
-                </span>
-              </div>
-
-              {/* Off-chain attendees */}
-              <div style={s.detailRow}>
-                <span style={s.detailLabel}>Off-chain check-ins</span>
-                <span style={s.detailValue}>{attendees.length}</span>
-              </div>
-
-              {/* Winners (if drawn) */}
-              {dbEvent?.winners && dbEvent.winners.length > 0 && (
-                <div style={s.winnersSection}>
-                  <span style={s.sectionTitle}>🏆 Winners</span>
-                  {dbEvent.winners.map((w, i) => (
-                    <div key={i} style={s.winnerRow}>
-                      <span style={s.winnerRank}>#{i + 1}</span>
-                      <span style={s.winnerAddr}>{trunc(w)}</span>
-                    </div>
-                  ))}
-                  {dbEvent.tx_hash && (
-                    <a
-                      href={`https://basescan.org/tx/${dbEvent.tx_hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={s.txLink}
-                    >
-                      View on BaseScan →
-                    </a>
-                  )}
-                </div>
-              )}
-
-              {/* Check-in link */}
-              <div style={s.linkCard}>
-                <span style={s.linkLabel}>Attendee check-in link</span>
-                <div style={s.linkRow}>
-                  <span style={s.linkUrl}>
-                    {typeof window !== "undefined"
-                      ? `${window.location.origin}/event/${eventIdInput}`
-                      : `/event/${eventIdInput}`}
-                  </span>
-                  <button
-                    style={s.copyBtn}
-                    onClick={() =>
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/event/${eventIdInput}`
-                      )
-                    }
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ━━━ ATTENDEES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-          {activeView === "attendees" && (
-            <div style={s.panel}>
-              <div style={s.attendeeHeader}>
-                <span style={s.sectionTitle}>
-                  Checked-in Wallets
-                </span>
-                <span style={s.attendeeCount}>
-                  {attendees.length}
-                </span>
-              </div>
-
-              {attendees.length === 0 ? (
-                <div style={s.emptyAttendees}>
-                  <span style={{ fontSize: "2rem", marginBottom: 8 }}>
-                    🦗
-                  </span>
-                  <p style={s.emptyText}>No attendees yet</p>
-                  <p style={s.emptyHint}>
-                    Share the check-in link to get started.
-                  </p>
-                </div>
-              ) : (
-                <div style={s.attendeeList}>
-                  {attendees.map((a, i) => (
-                    <div
-                      key={a.id}
-                      style={{
-                        ...s.attendeeRow,
-                        animationDelay: `${i * 0.04}s`,
-                      }}
-                    >
-                      <div style={s.attendeeLeft}>
-                        <span style={s.attendeeIndex}>{i + 1}</span>
-                        <div style={s.attendeeAvatar}>
-                          {a.wallet_address.slice(2, 4).toUpperCase()}
-                        </div>
-                        <span style={s.attendeeAddr}>
-                          {trunc(a.wallet_address)}
-                        </span>
-                      </div>
-                      <span style={s.attendeeTime}>
-                        {new Date(a.checked_in_at).toLocaleTimeString(
-                          "en-US",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ━━━ DRAW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-          {activeView === "draw" && (
-            <div style={s.panel}>
-              {/* Already drawn */}
-              {onChainEvent!.giveawayExecuted && drawState !== "success" ? (
-                <div style={s.drawnCard}>
-                  <div style={s.drawnIcon}>✅</div>
-                  <h3 style={s.drawnTitle}>Giveaway Complete</h3>
-                  <p style={s.drawnSub}>
-                    Winners have already been drawn for this event.
-                  </p>
-                  {dbEvent?.winners && dbEvent.winners.length > 0 && (
-                    <div style={s.drawnWinners}>
-                      {dbEvent.winners.map((w, i) => (
-                        <div key={i} style={s.drawnWinnerPill}>
-                          🏆 #{i + 1} {trunc(w)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : drawState === "success" ? (
-                /* Winner reveal */
-                <div style={s.revealCard}>
-                  <div style={s.revealGlow} />
-                  <span style={s.revealEmoji}>🎊</span>
-                  <h3 style={s.revealTitle}>Winners Drawn!</h3>
-                  <div style={s.revealList}>
-                    {winners.map((w, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          ...s.revealRow,
-                          opacity: i < revealedCount ? 1 : 0,
-                          transform:
-                            i < revealedCount
-                              ? "translateY(0) scale(1)"
-                              : "translateY(12px) scale(0.95)",
-                          transition:
-                            "opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-                        }}
-                      >
-                        <div style={s.revealRank}>
-                          <span style={s.revealRankText}>#{i + 1}</span>
-                        </div>
-                        <span style={s.revealAddr}>{trunc(w)}</span>
-                        <span style={s.revealTrophy}>🏆</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Draw form */
-                <>
-                  {/* Not organizer */}
-                  {!isOrganizer ? (
-                    <div style={s.warnCard}>
-                      <span style={s.warnIcon}>🔒</span>
-                      <div>
-                        <p style={s.warnTitle}>Organizer only</p>
-                        <p style={s.warnSub}>
-                          Only {trunc(onChainEvent!.organizer)} can draw
-                          winners.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Summary before draw */}
-                      <div style={s.drawSummary}>
-                        <div style={s.drawSummaryRow}>
-                          <span style={s.drawSummaryLabel}>
-                            Eligible attendees
-                          </span>
-                          <span style={s.drawSummaryValue}>
-                            {attendeeCount}
-                          </span>
-                        </div>
-                        <div style={s.drawSummaryRow}>
-                          <span style={s.drawSummaryLabel}>
-                            On-chain registered
-                          </span>
-                          <span style={s.drawSummaryValue}>
-                            {onChainAttendees?.length ?? 0}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Winner count input */}
-                      <div style={s.drawInputCard}>
-                        <label style={s.inputLabel}>
-                          Number of winners
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={String(
-                            onChainAttendees?.length ?? attendeeCount
-                          )}
-                          placeholder="e.g. 3"
-                          value={winnerCount}
-                          onChange={(e) => setWinnerCount(e.target.value)}
-                          style={s.input}
-                        />
-
-                        {/* Validation hints */}
-                        {winnerCountBn > 0n &&
-                          onChainAttendees &&
-                          winnerCountBn >
-                            BigInt(onChainAttendees.length) && (
-                            <p style={s.validationError}>
-                              Cannot exceed {onChainAttendees.length}{" "}
-                              on-chain attendees
-                            </p>
-                          )}
-
-                        {(onChainAttendees?.length ?? 0) === 0 && (
-                          <p style={s.validationWarn}>
-                            No attendees registered on-chain yet.
-                            Register them before drawing.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Transaction button */}
-                      <div style={s.drawCta}>
-                        {drawState === "pending" ||
-                        drawState === "confirming" ? (
-                          <div style={s.pendingCard}>
-                            <div style={s.pendingSpinner} />
-                            <p style={s.pendingText}>
-                              {drawState === "pending"
-                                ? "Waiting for confirmation..."
-                                : "Decoding winners..."}
-                            </p>
-                          </div>
-                        ) : (
-                          <Transaction
-                            chainId={BASE_CHAIN_ID}
-                            calls={giveawayCalls}
-                            onStatus={handleTxStatus}
-                          >
-                            <TransactionButton
-                              text="🎰  Run Giveaway"
-                              disabled={
-                                winnerCountBn === 0n ||
-                                !isOrganizer ||
-                                (onChainAttendees?.length ?? 0) === 0 ||
-                                winnerCountBn >
-                                  BigInt(
-                                    onChainAttendees?.length ?? 0
-                                  )
-                              }
-                            />
-                            <TransactionStatus>
-                              <TransactionStatusLabel />
-                              <TransactionStatusAction />
-                            </TransactionStatus>
-                          </Transaction>
-                        )}
-
-                        {drawState === "error" && (
-                          <div style={s.errorCard}>
-                            <p style={s.errorText}>{drawError}</p>
-                            <button
-                              style={s.retryBtn}
-                              onClick={() => setDrawState("idle")}
-                            >
-                              Try Again
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
+// ── Types ─────────────────────────────────────────────────────
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  subtext?: string;
+  accent?: boolean;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Styles — Telegram Mini App aesthetic
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+interface EventRowProps {
+  event: ApiEventSummary;
+  onSelect: (event: ApiEventSummary) => void;
+}
 
-const s: Record<string, React.CSSProperties> = {
-  shell: {
-    minHeight: "100dvh",
-    maxWidth: 430,
-    margin: "0 auto",
-    display: "flex",
-    flexDirection: "column",
-    position: "relative",
-    overflow: "hidden",
-    padding: "0 16px 32px",
-  },
-  topGlow: {
-    position: "absolute",
-    top: -80,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 320,
-    height: 200,
-    borderRadius: "50%",
-    background:
-      "radial-gradient(ellipse, rgba(217,119,6,0.18) 0%, transparent 70%)",
-    pointerEvents: "none",
-    zIndex: 0,
-  },
+// ── Viem client for read calls ────────────────────────────────
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
 
-  // Header
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "14px 0",
-    position: "relative",
-    zIndex: 1,
-  },
-  headerLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerDot: {
-    width: 10,
-    height: 10,
-    borderRadius: "50%",
-    background: "var(--amber)",
-    boxShadow: "0 0 8px var(--amber-glow)",
-  },
-  headerLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.82rem",
-    color: "var(--text-secondary)",
-    letterSpacing: "0.04em",
-    textTransform: "uppercase" as const,
-  },
-
-  // Hero (not connected)
-  heroConnect: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center" as const,
-    padding: "2rem",
-    position: "relative",
-    zIndex: 1,
-  },
-  heroRing: {
-    width: 80,
-    height: 80,
-    borderRadius: "50%",
-    background:
-      "conic-gradient(from 0deg, var(--amber), #fbbf24, var(--amber), #92400e, var(--amber))",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 3,
-    marginBottom: 20,
-  },
-  heroRingInner: {
-    width: "100%",
-    height: "100%",
-    borderRadius: "50%",
-    background: "var(--bg-primary)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroEmoji: { fontSize: "2rem" },
-  heroTitle: {
-    fontFamily: "var(--font-display)",
-    fontWeight: 700,
-    fontSize: "1.4rem",
-    marginBottom: 8,
-  },
-  heroSub: {
-    color: "var(--text-secondary)",
-    fontSize: "0.9rem",
-    maxWidth: 300,
-  },
-
-  // Input card
-  inputCard: {
-    position: "relative",
-    zIndex: 1,
-    marginBottom: 12,
-  },
-  inputLabel: {
-    display: "block",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.7rem",
-    color: "var(--text-muted)",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
-    marginBottom: 6,
-  },
-  inputRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    padding: "12px 14px",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.92rem",
-    color: "var(--text-primary)",
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    borderRadius: 14,
-    outline: "none",
-  },
-  liveBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "6px 12px",
-    borderRadius: 999,
-    background: "var(--green-soft)",
-    color: "var(--green)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    fontWeight: 500,
-    whiteSpace: "nowrap" as const,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "var(--green)",
-  },
-  miniSpinner: {
-    width: 18,
-    height: 18,
-    border: "2px solid var(--border)",
-    borderTopColor: "var(--amber)",
-    borderRadius: "50%",
-    animation: "spin 0.7s linear infinite",
-  },
-
-  // Empty / not found
-  emptyCard: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "28px 20px",
-    borderRadius: 20,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    textAlign: "center" as const,
-    position: "relative",
-    zIndex: 1,
-  },
-  emptyText: {
-    fontSize: "0.9rem",
-    color: "var(--text-secondary)",
-    marginBottom: 4,
-  },
-  emptyHint: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.75rem",
-    color: "var(--text-muted)",
-  },
-
-  // Warning card
-  warnCard: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: "14px 16px",
-    borderRadius: 16,
-    background: "rgba(217, 119, 6, 0.06)",
-    border: "1px solid rgba(217, 119, 6, 0.15)",
-    marginBottom: 12,
-    position: "relative",
-    zIndex: 1,
-  },
-  warnIcon: { fontSize: "1.2rem", flexShrink: 0, marginTop: 1 },
-  warnTitle: {
-    fontFamily: "var(--font-display)",
-    fontWeight: 600,
-    fontSize: "0.9rem",
-    color: "var(--amber)",
-    marginBottom: 2,
-  },
-  warnSub: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.75rem",
-    color: "var(--text-secondary)",
-  },
-
-  // Tab bar
-  tabBar: {
-    display: "flex",
-    gap: 4,
-    padding: 4,
-    borderRadius: 16,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    marginBottom: 16,
-    position: "relative",
-    zIndex: 1,
-  },
-  tab: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    padding: "10px 0",
-    borderRadius: 12,
-    background: "transparent",
-    border: "none",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.76rem",
-    color: "var(--text-muted)",
-    cursor: "pointer",
-    transition: "all 0.15s",
-  },
-  tabActive: {
-    background: "rgba(217, 119, 6, 0.1)",
-    color: "var(--amber)",
-  },
-  tabBadge: {
-    padding: "1px 7px",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.06)",
-    fontSize: "0.68rem",
-    fontWeight: 500,
-  },
-
-  // Panel
-  panel: {
-    position: "relative",
-    zIndex: 1,
-    animation: "fadeIn 0.2s ease",
-  },
-
-  // Stats grid
-  statsGrid: {
+// ── Styles ────────────────────────────────────────────────────
+const styles: Record<string, CSSProperties> = {
+  grid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-    marginBottom: 12,
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "20px",
+    marginBottom: "32px",
   },
   statCard: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 2,
-    padding: "16px 12px",
-    borderRadius: 16,
+    padding: "24px",
     background: "var(--bg-card)",
-    border: "1px solid var(--border)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "var(--radius-lg)",
+    backdropFilter: "blur(10px)",
   },
-  statEmoji: { fontSize: "1.3rem", marginBottom: 2 },
-  statNumber: {
-    fontFamily: "var(--font-display)",
-    fontWeight: 700,
-    fontSize: "1.4rem",
-    color: "var(--text-primary)",
+  statCardAccent: {
+    background: "var(--amber-glow)",
+    border: "1px solid rgba(217, 119, 6, 0.2)",
+  },
+  statIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg-elevated)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "16px",
+    color: "var(--text-secondary)",
+  },
+  statIconAccent: {
+    background: "rgba(217, 119, 6, 0.2)",
+    color: "var(--amber)",
   },
   statLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.62rem",
+    fontSize: "13px",
     color: "var(--text-muted)",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
+    marginBottom: "4px",
   },
-
-  // Detail rows
-  detailRow: {
+  statValue: {
+    fontSize: "28px",
+    fontWeight: 700,
+    color: "var(--text-primary)",
+  },
+  statSubtext: {
+    fontSize: "12px",
+    color: "var(--text-muted)",
+    marginTop: "4px",
+  },
+  section: {
+    marginBottom: "32px",
+  },
+  sectionHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "12px 16px",
-    borderRadius: 14,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    marginBottom: 6,
-  },
-  detailLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--text-muted)",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.05em",
-  },
-  detailValue: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.82rem",
-    color: "var(--text-secondary)",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  },
-  youTag: {
-    fontSize: "0.6rem",
-    padding: "2px 6px",
-    borderRadius: 999,
-    background: "var(--amber-soft)",
-    color: "var(--amber)",
-    fontWeight: 500,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.05em",
-  },
-
-  // Winners section in overview
-  winnersSection: {
-    padding: "16px",
-    borderRadius: 16,
-    background:
-      "linear-gradient(145deg, #0a1f0e 0%, var(--bg-card) 100%)",
-    border: "1px solid rgba(34, 197, 94, 0.15)",
-    marginTop: 8,
-    marginBottom: 8,
+    marginBottom: "16px",
   },
   sectionTitle: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--text-muted)",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
-    display: "block",
-    marginBottom: 10,
-  },
-  winnerRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "6px 0",
-  },
-  winnerRank: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--amber)",
-    width: 28,
-  },
-  winnerAddr: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.82rem",
+    fontSize: "16px",
+    fontWeight: 600,
     color: "var(--text-primary)",
   },
-  txLink: {
-    display: "inline-block",
-    marginTop: 10,
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--amber)",
-    textDecoration: "none",
-  },
-
-  // Check-in link card
-  linkCard: {
-    padding: "14px 16px",
-    borderRadius: 14,
+  card: {
     background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    marginTop: 8,
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "var(--radius-lg)",
+    overflow: "hidden",
   },
-  linkLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.68rem",
-    color: "var(--text-muted)",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
-    display: "block",
-    marginBottom: 8,
+  createForm: {
+    padding: "24px",
   },
-  linkRow: {
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "16px",
+    marginBottom: "20px",
+  },
+  formGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  formGroupFull: {
+    gridColumn: "1 / -1",
+  },
+  label: {
+    fontSize: "13px",
+    fontWeight: 500,
+    color: "var(--text-secondary)",
+  },
+  input: {
+    padding: "12px 14px",
+    background: "var(--bg-input)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+  },
+  textarea: {
+    padding: "12px 14px",
+    background: "var(--bg-input)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    minHeight: "80px",
+    resize: "vertical" as const,
+    fontFamily: "inherit",
+  },
+  buttonPrimary: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px 20px",
+    background: "var(--gradient-amber)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-inverse)",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all var(--transition-fast)",
+  },
+  buttonSecondary: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 16px",
+    background: "transparent",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer",
+    transition: "all var(--transition-fast)",
+  },
+  eventList: {
+    display: "flex",
+    flexDirection: "column",
+  },
+  eventRow: {
     display: "flex",
     alignItems: "center",
-    gap: 6,
-    padding: "8px 10px",
-    borderRadius: 10,
-    background: "var(--bg-input)",
-    border: "1px solid var(--border)",
+    gap: "16px",
+    padding: "16px 20px",
+    borderBottom: "1px solid var(--border-subtle)",
+    cursor: "pointer",
+    transition: "background var(--transition-fast)",
   },
-  linkUrl: {
-    flex: 1,
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.7rem",
+  eventRowLast: {
+    borderBottom: "none",
+  },
+  eventIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg-elevated)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     color: "var(--text-muted)",
+    flexShrink: 0,
+  },
+  eventInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eventTitle: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "var(--text-primary)",
+    marginBottom: "2px",
+  },
+  eventMeta: {
+    fontSize: "12px",
+    color: "var(--text-muted)",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  eventMetaItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+  },
+  eventStatus: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "4px 10px",
+    borderRadius: "var(--radius-full)",
+    fontSize: "12px",
+    fontWeight: 500,
+  },
+  statusLive: {
+    background: "var(--green-glow)",
+    color: "var(--green)",
+  },
+  statusComplete: {
+    background: "var(--amber-glow)",
+    color: "var(--amber)",
+  },
+  statusLocked: {
+    background: "var(--bg-elevated)",
+    color: "var(--text-muted)",
+  },
+  eventArrow: {
+    color: "var(--text-muted)",
+  },
+  emptyState: {
+    padding: "48px 24px",
+    textAlign: "center" as const,
+  },
+  emptyIcon: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "var(--radius-lg)",
+    background: "var(--bg-elevated)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 16px",
+    color: "var(--text-muted)",
+  },
+  emptyTitle: {
+    fontSize: "15px",
+    fontWeight: 500,
+    color: "var(--text-primary)",
+    marginBottom: "4px",
+  },
+  emptyText: {
+    fontSize: "13px",
+    color: "var(--text-muted)",
+  },
+  // Event detail modal/panel styles
+  detailPanel: {
+    position: "fixed",
+    top: 0,
+    right: 0,
+    width: "480px",
+    height: "100vh",
+    background: "var(--bg-surface)",
+    borderLeft: "1px solid var(--border-subtle)",
+    zIndex: 200,
+    display: "flex",
+    flexDirection: "column",
+    animation: "slideInRight 0.2s ease",
+  },
+  detailHeader: {
+    padding: "20px 24px",
+    borderBottom: "1px solid var(--border-subtle)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  detailTitle: {
+    fontSize: "18px",
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  },
+  detailClose: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg-elevated)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--text-muted)",
+    cursor: "pointer",
+    border: "none",
+  },
+  detailContent: {
+    flex: 1,
+    padding: "24px",
+    overflowY: "auto" as const,
+  },
+  detailSection: {
+    marginBottom: "24px",
+  },
+  detailLabel: {
+    fontSize: "12px",
+    fontWeight: 500,
+    color: "var(--text-muted)",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+    marginBottom: "8px",
+  },
+  detailValue: {
+    fontSize: "14px",
+    color: "var(--text-primary)",
+  },
+  detailStats: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: "12px",
+    marginBottom: "24px",
+  },
+  detailStatCard: {
+    padding: "16px",
+    background: "var(--bg-elevated)",
+    borderRadius: "var(--radius-md)",
+    textAlign: "center" as const,
+  },
+  detailStatValue: {
+    fontSize: "24px",
+    fontWeight: 700,
+    color: "var(--text-primary)",
+  },
+  detailStatLabel: {
+    fontSize: "12px",
+    color: "var(--text-muted)",
+    marginTop: "4px",
+  },
+  linkCard: {
+    padding: "16px",
+    background: "var(--bg-elevated)",
+    borderRadius: "var(--radius-md)",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  linkText: {
+    flex: 1,
+    fontSize: "13px",
+    color: "var(--text-secondary)",
+    fontFamily: "monospace",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
-  copyBtn: {
-    padding: "4px 10px",
-    borderRadius: 6,
-    background: "var(--amber-soft)",
-    border: "none",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.68rem",
-    fontWeight: 500,
-    color: "var(--amber)",
-    cursor: "pointer",
-    whiteSpace: "nowrap" as const,
-  },
-
-  // Attendee tab
-  attendeeHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  attendeeCount: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.82rem",
-    color: "var(--text-secondary)",
-    padding: "4px 10px",
-    borderRadius: 999,
+  iconButton: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "var(--radius-sm)",
     background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-  },
-  emptyAttendees: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "40px 20px",
-    textAlign: "center" as const,
-  },
-  attendeeList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
-  },
-  attendeeRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "10px 14px",
-    borderRadius: 14,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    animation: "fadeIn 0.3s ease both",
-  },
-  attendeeLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  },
-  attendeeIndex: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.68rem",
-    color: "var(--text-muted)",
-    width: 18,
-    textAlign: "right" as const,
-  },
-  attendeeAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    background:
-      "linear-gradient(135deg, rgba(217,119,6,0.2), rgba(217,119,6,0.05))",
-    border: "1px solid rgba(217,119,6,0.15)",
+    border: "1px solid var(--border-default)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.6rem",
-    fontWeight: 500,
-    color: "var(--amber)",
-  },
-  attendeeAddr: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.8rem",
-    color: "var(--text-primary)",
-  },
-  attendeeTime: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.68rem",
     color: "var(--text-muted)",
-  },
-
-  // Draw tab
-  drawSummary: {
-    padding: "14px 16px",
-    borderRadius: 16,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    marginBottom: 12,
-  },
-  drawSummaryRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "4px 0",
-  },
-  drawSummaryLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--text-muted)",
-  },
-  drawSummaryValue: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.88rem",
-    color: "var(--text-primary)",
-    fontWeight: 500,
-  },
-  drawInputCard: {
-    padding: "16px",
-    borderRadius: 16,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    marginBottom: 12,
-  },
-  validationError: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--red)",
-    marginTop: 6,
-  },
-  validationWarn: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    color: "var(--amber)",
-    marginTop: 6,
-  },
-  drawCta: {
-    position: "relative",
-    zIndex: 1,
-  },
-
-  // Pending state
-  pendingCard: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "28px 20px",
-    borderRadius: 20,
-    background: "var(--bg-card)",
-    border: "1px solid var(--border)",
-    textAlign: "center" as const,
-  },
-  pendingSpinner: {
-    width: 36,
-    height: 36,
-    border: "3px solid var(--border)",
-    borderTopColor: "var(--amber)",
-    borderRadius: "50%",
-    animation: "spin 0.7s linear infinite",
-    marginBottom: 14,
-  },
-  pendingText: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.82rem",
-    color: "var(--text-secondary)",
-  },
-
-  // Error state
-  errorCard: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "16px",
-    borderRadius: 16,
-    background: "var(--red-soft)",
-    border: "1px solid rgba(239, 68, 68, 0.2)",
-    marginTop: 12,
-    textAlign: "center" as const,
-  },
-  errorText: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.78rem",
-    color: "var(--red)",
-    marginBottom: 10,
-  },
-  retryBtn: {
-    padding: "8px 20px",
-    borderRadius: 10,
-    background: "transparent",
-    border: "1px solid var(--red)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.75rem",
-    color: "var(--red)",
     cursor: "pointer",
   },
-
-  // Already drawn card
-  drawnCard: {
+  detailFooter: {
+    padding: "20px 24px",
+    borderTop: "1px solid var(--border-subtle)",
     display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "28px 20px",
-    borderRadius: 20,
-    background:
-      "linear-gradient(145deg, #0a1f0e 0%, var(--bg-card) 100%)",
-    border: "1px solid rgba(34, 197, 94, 0.15)",
-    textAlign: "center" as const,
+    gap: "12px",
   },
-  drawnIcon: { fontSize: "2.2rem", marginBottom: 10 },
-  drawnTitle: {
-    fontFamily: "var(--font-display)",
-    fontWeight: 700,
-    fontSize: "1.15rem",
-    color: "var(--green)",
-    marginBottom: 6,
+  backdrop: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.5)",
+    zIndex: 199,
   },
-  drawnSub: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.78rem",
-    color: "var(--text-secondary)",
-    marginBottom: 14,
-  },
-  drawnWinners: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    width: "100%",
-  },
-  drawnWinnerPill: {
-    padding: "8px 14px",
-    borderRadius: 10,
-    background: "rgba(34, 197, 94, 0.08)",
-    border: "1px solid rgba(34, 197, 94, 0.12)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.78rem",
-    color: "var(--text-primary)",
-    textAlign: "left" as const,
-  },
-
-  // Winner reveal
-  revealCard: {
-    position: "relative",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "32px 20px 24px",
-    borderRadius: 24,
-    background:
-      "linear-gradient(145deg, #1a1508 0%, #12100a 50%, var(--bg-card) 100%)",
-    border: "1px solid rgba(217, 119, 6, 0.2)",
-    textAlign: "center" as const,
-    overflow: "hidden",
-  },
-  revealGlow: {
-    position: "absolute",
-    top: -40,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 200,
-    height: 120,
+  spinner: {
+    width: "16px",
+    height: "16px",
+    border: "2px solid transparent",
+    borderTopColor: "currentColor",
     borderRadius: "50%",
-    background:
-      "radial-gradient(ellipse, rgba(217,119,6,0.25) 0%, transparent 70%)",
-    pointerEvents: "none",
-  },
-  revealEmoji: {
-    fontSize: "2.5rem",
-    marginBottom: 10,
-    position: "relative",
-    zIndex: 1,
-    animation: "scaleIn 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-  },
-  revealTitle: {
-    fontFamily: "var(--font-display)",
-    fontWeight: 700,
-    fontSize: "1.25rem",
-    color: "var(--amber)",
-    marginBottom: 18,
-    position: "relative",
-    zIndex: 1,
-  },
-  revealList: {
-    width: "100%",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    position: "relative",
-    zIndex: 1,
-  },
-  revealRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 16px",
-    borderRadius: 14,
-    background: "rgba(217, 119, 6, 0.06)",
-    border: "1px solid rgba(217, 119, 6, 0.12)",
-  },
-  revealRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    background:
-      "linear-gradient(135deg, var(--amber), #fbbf24)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  revealRankText: {
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.72rem",
-    fontWeight: 700,
-    color: "#0c0c0e",
-  },
-  revealAddr: {
-    flex: 1,
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.85rem",
-    color: "var(--text-primary)",
-    textAlign: "left" as const,
-  },
-  revealTrophy: {
-    fontSize: "1.1rem",
+    animation: "spin 0.6s linear infinite",
   },
 };
+
+// ── Stat Card Component ───────────────────────────────────────
+function StatCard({ icon, label, value, subtext, accent }: StatCardProps) {
+  return (
+    <div style={{ ...styles.statCard, ...(accent ? styles.statCardAccent : {}) }}>
+      <div style={{ ...styles.statIcon, ...(accent ? styles.statIconAccent : {}) }}>
+        {icon}
+      </div>
+      <div style={styles.statLabel}>{label}</div>
+      <div style={styles.statValue}>{value}</div>
+      {subtext && <div style={styles.statSubtext}>{subtext}</div>}
+    </div>
+  );
+}
+
+// ── Event Row Component ───────────────────────────────────────
+function EventRow({ event, onSelect }: EventRowProps) {
+  const getStatus = () => {
+    if (event.giveaway_executed) {
+      return { label: "Complete", style: styles.statusComplete, icon: <Trophy size={12} /> };
+    }
+    if (event.is_locked) {
+      return { label: "Locked", style: styles.statusLocked, icon: <XCircle size={12} /> };
+    }
+    return { label: "Live", style: styles.statusLive, icon: <CheckCircle size={12} /> };
+  };
+
+  const status = getStatus();
+
+  return (
+    <div style={styles.eventRow} onClick={() => onSelect(event)}>
+      <div style={styles.eventIcon}>
+        <Calendar size={20} />
+      </div>
+      <div style={styles.eventInfo}>
+        <div style={styles.eventTitle}>{event.title}</div>
+        <div style={styles.eventMeta}>
+          <span style={styles.eventMetaItem}>
+            <Users size={12} />
+            {event.attendee_count} checked in
+          </span>
+          <span style={styles.eventMetaItem}>
+            <Clock size={12} />
+            {new Date(event.created_at).toLocaleDateString()}
+          </span>
+        </div>
+      </div>
+      <div style={{ ...styles.eventStatus, ...status.style }}>
+        {status.icon}
+        {status.label}
+      </div>
+      <ChevronRight size={18} style={styles.eventArrow} />
+    </div>
+  );
+}
+
+// ── Main Dashboard Component ──────────────────────────────────
+export default function DashboardPage() {
+  const { user } = usePrivy();
+  const walletAddress = user?.wallet?.address as Address | undefined;
+
+  // State
+  const [events, setEvents] = useState<ApiEventSummary[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [creating, setCreating] = useState<boolean>(false);
+  const [selectedEvent, setSelectedEvent] = useState<ApiEventSummary | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  // Form state
+  const [formTitle, setFormTitle] = useState<string>("");
+  const [formDescription, setFormDescription] = useState<string>("");
+  const [formMaxAttendees, setFormMaxAttendees] = useState<string>("");
+
+  // Stats
+  const totalEvents = events.length;
+  const totalAttendees = events.reduce((sum, e) => sum + e.attendee_count, 0);
+  const completedGiveaways = events.filter((e) => e.giveaway_executed).length;
+  const liveEvents = events.filter((e) => !e.is_locked && !e.giveaway_executed).length;
+
+  // Fetch events
+  const fetchEvents = useCallback(async () => {
+    if (!walletAddress) return;
+    setLoading(true);
+    try {
+      const rawEvents = await apiGetEventsByOrganizer(walletAddress);
+      // Fetch full summary for each event
+      const summaries = await Promise.all(
+        rawEvents.map((e) => apiGetEventSummary(e.chain_event_id).catch(() => null))
+      );
+      setEvents(summaries.filter((s): s is ApiEventSummary => s !== null));
+    } catch (err) {
+      console.error("Failed to fetch events:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [walletAddress]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Create event
+  const handleCreateEvent = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!walletAddress || !formTitle.trim()) return;
+
+    setCreating(true);
+    try {
+      // Generate a unique chain event ID
+      const chainEventId = Date.now();
+
+      // First create on-chain (this would require a transaction)
+      // For now, we'll just create in the database
+      // In production, you'd use Privy's sendTransaction
+
+      await apiCreateEvent({
+        chainEventId,
+        title: formTitle.trim(),
+        description: formDescription.trim() || undefined,
+        organizer: walletAddress,
+        maxAttendees: formMaxAttendees ? parseInt(formMaxAttendees, 10) : undefined,
+      });
+
+      // Reset form
+      setFormTitle("");
+      setFormDescription("");
+      setFormMaxAttendees("");
+
+      // Refresh events
+      await fetchEvents();
+    } catch (err) {
+      console.error("Failed to create event:", err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Copy check-in link
+  const handleCopyLink = () => {
+    if (!selectedEvent) return;
+    const url = `${window.location.origin}/event/${selectedEvent.chain_event_id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <DashboardLayout
+      title="Dashboard"
+      description="Manage your events and giveaways"
+    >
+      {/* Stats Grid */}
+      <div style={styles.grid}>
+        <StatCard
+          icon={<Calendar size={20} />}
+          label="Total Events"
+          value={totalEvents}
+          subtext={`${liveEvents} active`}
+        />
+        <StatCard
+          icon={<Users size={20} />}
+          label="Total Attendees"
+          value={totalAttendees}
+          subtext="Across all events"
+        />
+        <StatCard
+          icon={<Trophy size={20} />}
+          label="Giveaways Run"
+          value={completedGiveaways}
+          subtext="Successfully completed"
+          accent
+        />
+        <StatCard
+          icon={<CheckCircle size={20} />}
+          label="Success Rate"
+          value={totalEvents > 0 ? `${Math.round((completedGiveaways / totalEvents) * 100)}%` : "—"}
+          subtext="Of events completed"
+        />
+      </div>
+
+      {/* Create Event Section */}
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>Create New Event</h2>
+        </div>
+        <div style={styles.card}>
+          <form style={styles.createForm} onSubmit={handleCreateEvent}>
+            <div style={styles.formGrid}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Event Title *</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  placeholder="e.g. ETH Denver Giveaway"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Max Attendees</label>
+                <input
+                  type="number"
+                  style={styles.input}
+                  placeholder="Unlimited"
+                  value={formMaxAttendees}
+                  onChange={(e) => setFormMaxAttendees(e.target.value)}
+                  min="1"
+                />
+              </div>
+              <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
+                <label style={styles.label}>Description</label>
+                <textarea
+                  style={styles.textarea}
+                  placeholder="Tell attendees about your event..."
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              style={styles.buttonPrimary}
+              disabled={creating || !formTitle.trim()}
+            >
+              {creating ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  Create Event
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Events List Section */}
+      <section style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>Your Events</h2>
+          <button style={styles.buttonSecondary} onClick={fetchEvents}>
+            Refresh
+          </button>
+        </div>
+        <div style={styles.card}>
+          {loading ? (
+            <div style={styles.emptyState}>
+              <div style={styles.spinner} />
+            </div>
+          ) : events.length === 0 ? (
+            <div style={styles.emptyState}>
+              <div style={styles.emptyIcon}>
+                <Calendar size={24} />
+              </div>
+              <div style={styles.emptyTitle}>No events yet</div>
+              <div style={styles.emptyText}>
+                Create your first event to get started
+              </div>
+            </div>
+          ) : (
+            <div style={styles.eventList}>
+              {events.map((event, index) => (
+                <EventRow
+                  key={event.id}
+                  event={event}
+                  onSelect={setSelectedEvent}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Event Detail Panel */}
+      {selectedEvent && (
+        <>
+          <div style={styles.backdrop} onClick={() => setSelectedEvent(null)} />
+          <div style={styles.detailPanel}>
+            <div style={styles.detailHeader}>
+              <h3 style={styles.detailTitle}>{selectedEvent.title}</h3>
+              <button
+                style={styles.detailClose}
+                onClick={() => setSelectedEvent(null)}
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+            <div style={styles.detailContent}>
+              <div style={styles.detailStats}>
+                <div style={styles.detailStatCard}>
+                  <div style={styles.detailStatValue}>
+                    {selectedEvent.attendee_count}
+                  </div>
+                  <div style={styles.detailStatLabel}>Checked In</div>
+                </div>
+                <div style={styles.detailStatCard}>
+                  <div style={styles.detailStatValue}>
+                    {selectedEvent.max_attendees ?? "∞"}
+                  </div>
+                  <div style={styles.detailStatLabel}>Capacity</div>
+                </div>
+              </div>
+
+              {selectedEvent.description && (
+                <div style={styles.detailSection}>
+                  <div style={styles.detailLabel}>Description</div>
+                  <div style={styles.detailValue}>
+                    {selectedEvent.description}
+                  </div>
+                </div>
+              )}
+
+              <div style={styles.detailSection}>
+                <div style={styles.detailLabel}>Check-in Link</div>
+                <div style={styles.linkCard}>
+                  <span style={styles.linkText}>
+                    {typeof window !== "undefined"
+                      ? `${window.location.origin}/event/${selectedEvent.chain_event_id}`
+                      : ""}
+                  </span>
+                  <button style={styles.iconButton} onClick={handleCopyLink}>
+                    {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                  </button>
+                  <a
+                    href={`/event/${selectedEvent.chain_event_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.iconButton}
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
+
+              {selectedEvent.giveaway_executed && selectedEvent.winners && (
+                <div style={styles.detailSection}>
+                  <div style={styles.detailLabel}>Winners</div>
+                  {selectedEvent.winners.map((winner, i) => (
+                    <div key={winner} style={{ ...styles.detailValue, marginBottom: "4px" }}>
+                      {i + 1}. {winner.slice(0, 6)}...{winner.slice(-4)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.detailFooter}>
+              {!selectedEvent.giveaway_executed && (
+                <a
+                  href={`/giveaway/event/${selectedEvent.chain_event_id}`}
+                  style={{ ...styles.buttonPrimary, textDecoration: "none", flex: 1 }}
+                >
+                  <Trophy size={16} />
+                  Run Giveaway
+                </a>
+              )}
+              {selectedEvent.tx_hash && (
+                <a
+                  href={`https://basescan.org/tx/${selectedEvent.tx_hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...styles.buttonSecondary, textDecoration: "none" }}
+                >
+                  <ExternalLink size={14} />
+                  BaseScan
+                </a>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      <style jsx global>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+    </DashboardLayout>
+  );
+}

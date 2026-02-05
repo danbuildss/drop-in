@@ -1,38 +1,47 @@
 // ─────────────────────────────────────────────────────────────
-//  lib/providers.tsx — All Web3 context providers in one place
+//  lib/providers.tsx — Privy + React Query providers
 // ─────────────────────────────────────────────────────────────
 
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { WagmiProvider } from "wagmi";
+import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { base } from "wagmi/chains";
-import { wagmiConfig } from "@/lib/wagmi";
+import { base } from "viem/chains";
 
-// Import OnchainKit default styles
-import "@coinbase/onchainkit/styles.css";
+interface ProvidersProps {
+  children: ReactNode;
+}
 
-export function Providers({ children }: { children: ReactNode }) {
-  // QueryClient lives in state so it's not re-created on every render
-  const [queryClient] = useState(() => new QueryClient());
+export function Providers({ children }: ProvidersProps) {
+  const [queryClient] = useState<QueryClient>(() => new QueryClient());
 
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""}
+      config={{
+        appearance: {
+          theme: "dark",
+          accentColor: "#d97706",
+          logo: "/logo.svg",
+          showWalletLoginFirst: true,
+        },
+        loginMethods: [
+          "wallet",
+          "email",
+          "google",
+        ],
+        embeddedWallets: {
+          createOnLogin: "users-without-wallets",
+        },
+        defaultChain: base,
+        supportedChains: [base],
+        walletConnectCloudProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+      }}
+    >
       <QueryClientProvider client={queryClient}>
-        <OnchainKitProvider
-          apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
-          chain={base}
-          config={{
-            appearance: {
-              mode: "auto",
-            },
-          }}
-        >
-          {children}
-        </OnchainKitProvider>
+        {children}
       </QueryClientProvider>
-    </WagmiProvider>
+    </PrivyProvider>
   );
 }
