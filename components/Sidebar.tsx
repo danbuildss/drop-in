@@ -225,7 +225,7 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.logo}>
-          <div style={styles.logoIcon}>🎰</div>
+          <img src="/logo-icon.png" alt="DropIn" style={{ width: "36px", height: "36px", borderRadius: "10px" }} />
           {!collapsed && <span style={styles.logoText}>DropIn</span>}
         </div>
         {onToggle && (

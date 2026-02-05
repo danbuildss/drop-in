@@ -366,7 +366,7 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav style={styles.nav}>
         <div style={styles.logo}>
-          <div style={styles.logoIcon}>🎰</div>
+          <img src="/logo-icon.png" alt="DropIn" style={{ width: "36px", height: "36px", borderRadius: "10px" }} />
           <span>DropIn</span>
         </div>
         <div style={styles.navLinks}>
@@ -464,7 +464,7 @@ export default function LandingPage() {
       <footer style={styles.footer}>
         <div style={styles.footerInner}>
           <span style={styles.footerText}>
-            © 2025 DropIn. Built on Base.
+            © 2026 DropIn. Built on Base.
           </span>
           <div style={styles.footerLinks}>
             <span style={styles.footerLink}>Documentation</span>

@@ -21,7 +21,7 @@ import {
   QrCode,
 } from "lucide-react";
 import Link from "next/link";
-import QRCode from "qrcode";
+// QRCode imported dynamically to avoid SSR canvas issues
 import {
   apiGetEventSummary,
   apiGetAttendees,
@@ -384,14 +384,16 @@ export default function EventManagementPage() {
     fetchData();
   }, [fetchData]);
 
-  // Generate QR code
+  // Generate QR code (dynamic import to avoid SSR canvas issues)
   useEffect(() => {
     if (!checkInUrl) return;
-    QRCode.toDataURL(checkInUrl, {
-      width: 180,
-      margin: 2,
-      color: { dark: "#000000", light: "#ffffff" },
-    }).then(setQrDataUrl);
+    import("qrcode").then((QRCode) => {
+      QRCode.toDataURL(checkInUrl, {
+        width: 180,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      }).then(setQrDataUrl).catch(console.error);
+    }).catch(console.error);
   }, [checkInUrl]);
 
   // Copy link

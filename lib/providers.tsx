@@ -23,7 +23,7 @@ export function Providers({ children }: ProvidersProps) {
         appearance: {
           theme: "dark",
           accentColor: "#d97706",
-          logo: "/logo.svg",
+          logo: "/logo-full.png",
           showWalletLoginFirst: true,
         },
         loginMethods: [

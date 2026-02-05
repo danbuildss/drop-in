@@ -530,7 +530,7 @@ export default function CheckInPage() {
       <div style={styles.glow} />
       <div style={styles.container}>
         <div style={styles.card}>
-          <div style={styles.logo}>🎰</div>
+          <div style={styles.logo}><img src="/logo-icon.png" alt="DropIn" style={{ width: "40px", height: "40px", borderRadius: "12px" }} /></div>
           <h1 style={styles.eventTitle}>{event.title}</h1>
           {event.description && (
             <p style={styles.eventDescription}>{event.description}</p>
