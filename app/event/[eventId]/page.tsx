@@ -15,12 +15,22 @@ import {
   Loader2,
   Wallet,
   PartyPopper,
+  Share2,
+  Gift,
+  Award,
+  Star,
 } from "lucide-react";
 import { apiGetEventSummary, apiCheckIn, type ApiEventSummary } from "@/lib/api";
+import { shareOnFarcaster, shareOnX, getCheckInShareText } from "@/lib/share";
 import type { CSSProperties } from "react";
 
 // ── Types ─────────────────────────────────────────────────────
 type CheckInState = "idle" | "loading" | "success" | "already" | "locked" | "error";
+
+interface AttendeeStats {
+  totalCheckIns: number;
+  loading: boolean;
+}
 
 // ── Styles ────────────────────────────────────────────────────
 const styles: Record<string, CSSProperties> = {
@@ -213,6 +223,87 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "14px",
     color: "var(--text-secondary)",
   },
+  giveawayBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 16px",
+    background: "var(--amber-glow)",
+    borderRadius: "var(--radius-full)",
+    marginTop: "16px",
+    marginBottom: "24px",
+    color: "var(--amber)",
+    fontSize: "14px",
+    fontWeight: 500,
+  },
+  shareSection: {
+    marginTop: "24px",
+    paddingTop: "24px",
+    borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+  },
+  shareTitle: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "var(--text-secondary)",
+    marginBottom: "12px",
+  },
+  shareButtons: {
+    display: "flex",
+    gap: "12px",
+  },
+  shareButton: {
+    flex: 1,
+    padding: "12px 16px",
+    background: "var(--gradient-primary)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "#FFFFFF",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    transition: "all var(--transition-fast)",
+  },
+  shareButtonX: {
+    background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+  },
+  attendeeStatsCard: {
+    marginTop: "20px",
+    padding: "16px",
+    background: "var(--bg-elevated)",
+    borderRadius: "var(--radius-md)",
+  },
+  attendeeStatsText: {
+    fontSize: "14px",
+    color: "var(--text-secondary)",
+    marginBottom: "8px",
+  },
+  badgeContainer: {
+    display: "flex",
+    gap: "8px",
+    justifyContent: "center",
+    flexWrap: "wrap",
+  },
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 12px",
+    borderRadius: "var(--radius-full)",
+    fontSize: "12px",
+    fontWeight: 600,
+  },
+  badgeRegular: {
+    background: "linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%)",
+    color: "#FBBF24",
+  },
+  badgeOG: {
+    background: "linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)",
+    color: "#A78BFA",
+  },
   alreadyCard: {
     background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%)",
     border: "1px solid rgba(59, 130, 246, 0.2)",
@@ -337,6 +428,7 @@ export default function CheckInPage() {
   const [notFound, setNotFound] = useState<boolean>(false);
   const [checkInState, setCheckInState] = useState<CheckInState>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [attendeeStats, setAttendeeStats] = useState<AttendeeStats>({ totalCheckIns: 0, loading: false });
 
   const walletAddress = user?.wallet?.address;
   const displayAddress = walletAddress
@@ -365,6 +457,26 @@ export default function CheckInPage() {
       });
   }, [eventId]);
 
+  // Fetch attendee stats when wallet is connected
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    setAttendeeStats(prev => ({ ...prev, loading: true }));
+    
+    fetch(`/api/checkins?wallet=${encodeURIComponent(walletAddress)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (typeof data.count === 'number') {
+          setAttendeeStats({ totalCheckIns: data.count, loading: false });
+        } else {
+          setAttendeeStats(prev => ({ ...prev, loading: false }));
+        }
+      })
+      .catch(() => {
+        setAttendeeStats(prev => ({ ...prev, loading: false }));
+      });
+  }, [walletAddress]);
+
   // Check-in handler
   const handleCheckIn = useCallback(async () => {
     if (!walletAddress || !event) return;
@@ -383,6 +495,9 @@ export default function CheckInPage() {
       const chainId = Number(eventId);
       const updated = await apiGetEventSummary(chainId);
       setEvent(updated);
+
+      // Increment local attendee stats
+      setAttendeeStats(prev => ({ ...prev, totalCheckIns: prev.totalCheckIns + 1 }));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
 
@@ -396,6 +511,33 @@ export default function CheckInPage() {
       }
     }
   }, [walletAddress, event, eventId]);
+
+  // Share handlers
+  const handleShareFarcaster = () => {
+    if (!event) return;
+    const shareText = getCheckInShareText(event.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${eventId}` : "";
+    shareOnFarcaster(shareText, url);
+  };
+
+  const handleShareX = () => {
+    if (!event) return;
+    const shareText = getCheckInShareText(event.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${eventId}` : "";
+    shareOnX(shareText, url);
+  };
+
+  // Get badge based on check-in count
+  const getBadge = () => {
+    const count = attendeeStats.totalCheckIns;
+    if (count >= 10) {
+      return { label: "⭐ Base Event OG", style: styles.badgeOG };
+    }
+    if (count >= 3) {
+      return { label: "🏅 DropIn Regular", style: styles.badgeRegular };
+    }
+    return null;
+  };
 
   // Loading state
   if (!ready || loading) {
@@ -430,8 +572,10 @@ export default function CheckInPage() {
     );
   }
 
-  // Success state
+  // Success state with share buttons
   if (checkInState === "success") {
+    const badge = getBadge();
+
     return (
       <div style={styles.page}>
         <div style={styles.glow} />
@@ -440,9 +584,42 @@ export default function CheckInPage() {
             <div style={styles.successIcon}>
               <PartyPopper size={32} />
             </div>
-            <div style={styles.successTitle}>You&apos;re in!</div>
+            <div style={styles.successTitle}>✅ You&apos;re checked in!</div>
             <div style={styles.successText}>
-              Successfully checked in to {event.title}. Good luck in the giveaway!
+              Successfully checked in to {event.title}.
+            </div>
+            
+            {/* Giveaway eligibility badge */}
+            <div style={styles.giveawayBadge}>
+              <Gift size={16} />
+              You&apos;re eligible for today&apos;s giveaway
+            </div>
+
+            {/* Attendee stats */}
+            <div style={styles.attendeeStatsCard}>
+              <div style={styles.attendeeStatsText}>
+                You&apos;ve attended <strong>{attendeeStats.totalCheckIns}</strong> DropIn event{attendeeStats.totalCheckIns !== 1 ? 's' : ''}
+              </div>
+              {badge && (
+                <div style={styles.badgeContainer}>
+                  <span style={{ ...styles.badge, ...badge.style }}>{badge.label}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Share section */}
+            <div style={styles.shareSection}>
+              <div style={styles.shareTitle}>Share your check-in</div>
+              <div style={styles.shareButtons}>
+                <button style={styles.shareButton} onClick={handleShareFarcaster}>
+                  <Share2 size={16} />
+                  Farcaster
+                </button>
+                <button style={{ ...styles.shareButton, ...styles.shareButtonX }} onClick={handleShareX}>
+                  <span style={{ fontWeight: 700 }}>𝕏</span>
+                  Share
+                </button>
+              </div>
             </div>
           </div>
           <div style={styles.footer}>
@@ -460,6 +637,8 @@ export default function CheckInPage() {
 
   // Already checked in state
   if (checkInState === "already") {
+    const badge = getBadge();
+
     return (
       <div style={styles.page}>
         <div style={styles.glow} />
@@ -471,6 +650,39 @@ export default function CheckInPage() {
             <div style={styles.successTitle}>Already checked in</div>
             <div style={styles.successText}>
               You&apos;ve already checked in to this event. Good luck!
+            </div>
+            
+            {/* Giveaway eligibility badge */}
+            <div style={styles.giveawayBadge}>
+              <Gift size={16} />
+              You&apos;re eligible for today&apos;s giveaway
+            </div>
+
+            {/* Attendee stats */}
+            <div style={styles.attendeeStatsCard}>
+              <div style={styles.attendeeStatsText}>
+                You&apos;ve attended <strong>{attendeeStats.totalCheckIns}</strong> DropIn event{attendeeStats.totalCheckIns !== 1 ? 's' : ''}
+              </div>
+              {badge && (
+                <div style={styles.badgeContainer}>
+                  <span style={{ ...styles.badge, ...badge.style }}>{badge.label}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Share section */}
+            <div style={styles.shareSection}>
+              <div style={styles.shareTitle}>Share your check-in</div>
+              <div style={styles.shareButtons}>
+                <button style={styles.shareButton} onClick={handleShareFarcaster}>
+                  <Share2 size={16} />
+                  Farcaster
+                </button>
+                <button style={{ ...styles.shareButton, ...styles.shareButtonX }} onClick={handleShareX}>
+                  <span style={{ fontWeight: 700 }}>𝕏</span>
+                  Share
+                </button>
+              </div>
             </div>
           </div>
         </div>

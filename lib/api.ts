@@ -116,6 +116,13 @@ export async function apiGetAttendees(
   return handleResponse<ApiCheckIn[]>(res);
 }
 
+export async function apiGetWalletCheckInCount(
+  wallet: string
+): Promise<{ wallet: string; count: number }> {
+  const res = await fetch(`/api/checkins?wallet=${encodeURIComponent(wallet)}`);
+  return handleResponse<{ wallet: string; count: number }>(res);
+}
+
 // ── Giveaways ────────────────────────────────────────────────
 
 export async function apiCreateGiveaway(input: {

@@ -19,7 +19,10 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  CopyPlus,
+  Share2,
 } from "lucide-react";
+import { shareOnFarcaster, shareOnX, getWinnersShareText } from "@/lib/share";
 import {
   apiGetEventsByOrganizer,
   apiCreateEvent,
@@ -573,6 +576,44 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Duplicate event
+  const handleDuplicateEvent = async () => {
+    if (!selectedEvent || !walletAddress) return;
+    
+    setCreating(true);
+    try {
+      const chainEventId = Date.now();
+      await apiCreateEvent({
+        chainEventId,
+        title: `${selectedEvent.title} (Copy)`,
+        description: selectedEvent.description || undefined,
+        organizer: walletAddress,
+        maxAttendees: selectedEvent.max_attendees || undefined,
+      });
+      setSelectedEvent(null);
+      await fetchEvents();
+    } catch (err) {
+      console.error("Failed to duplicate event:", err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Share handlers for selected event
+  const handleShareFarcaster = () => {
+    if (!selectedEvent) return;
+    const shareText = getWinnersShareText(selectedEvent.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${selectedEvent.chain_event_id}/results` : "";
+    shareOnFarcaster(shareText, url);
+  };
+
+  const handleShareX = () => {
+    if (!selectedEvent) return;
+    const shareText = getWinnersShareText(selectedEvent.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${selectedEvent.chain_event_id}/results` : "";
+    shareOnX(shareText, url);
+  };
+
   return (
     <DashboardLayout
       title="Dashboard"
@@ -778,6 +819,45 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* Share Section (if giveaway executed) */}
+            {selectedEvent.giveaway_executed && (
+              <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Share Results</div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={handleShareFarcaster}
+                    style={{
+                      ...styles.buttonSecondary,
+                      flex: 1,
+                      padding: "10px 12px",
+                      fontSize: "13px",
+                      background: "var(--gradient-primary)",
+                      border: "none",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    <Share2 size={14} />
+                    Farcaster
+                  </button>
+                  <button
+                    onClick={handleShareX}
+                    style={{
+                      ...styles.buttonSecondary,
+                      flex: 1,
+                      padding: "10px 12px",
+                      fontSize: "13px",
+                      background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+                      border: "none",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    <span style={{ fontWeight: 700 }}>𝕏</span>
+                    Share
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={styles.detailFooter}>
               {!selectedEvent.giveaway_executed && (
                 <a
@@ -788,6 +868,22 @@ export default function DashboardPage() {
                   Run Giveaway
                 </a>
               )}
+              {/* Duplicate Event Button */}
+              <button
+                onClick={handleDuplicateEvent}
+                disabled={creating}
+                style={{
+                  ...styles.buttonSecondary,
+                  opacity: creating ? 0.5 : 1,
+                }}
+              >
+                {creating ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <CopyPlus size={14} />
+                )}
+                Duplicate
+              </button>
               {selectedEvent.tx_hash && (
                 <a
                   href={`https://basescan.org/tx/${selectedEvent.tx_hash}`}

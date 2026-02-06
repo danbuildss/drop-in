@@ -3,6 +3,7 @@
 //  Body: { eventId (uuid), walletAddress }
 //
 //  GET /api/checkins?eventId=xxx — List attendees for an event
+//  GET /api/checkins?wallet=0x... — Get check-in count for a wallet
 // ─────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
@@ -81,10 +82,26 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const eventId = searchParams.get("eventId");
+  const wallet = searchParams.get("wallet");
 
+  // If wallet is provided, return count of check-ins for that wallet
+  if (wallet) {
+    const { count, error } = await supabaseAdmin
+      .from("check_ins")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_address", wallet.toLowerCase());
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ wallet, count: count ?? 0 });
+  }
+
+  // Otherwise, return attendees for an event
   if (!eventId) {
     return NextResponse.json(
-      { error: "eventId query param required" },
+      { error: "eventId or wallet query param required" },
       { status: 400 }
     );
   }

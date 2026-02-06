@@ -20,7 +20,9 @@ import {
   ArrowLeft,
   QrCode,
   Maximize2,
+  Share2,
 } from "lucide-react";
+import { shareOnFarcaster, shareOnX, getWinnersShareText } from "@/lib/share";
 import Link from "next/link";
 // QRCode imported dynamically to avoid SSR canvas issues
 import {
@@ -333,6 +335,40 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: "50%",
     animation: "spin 0.6s linear infinite",
   },
+  shareSection: {
+    marginTop: "24px",
+    paddingTop: "24px",
+    borderTop: "1px solid var(--border-subtle)",
+  },
+  shareTitle: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "var(--text-secondary)",
+    marginBottom: "12px",
+  },
+  shareButtons: {
+    display: "flex",
+    gap: "12px",
+  },
+  shareButton: {
+    flex: 1,
+    padding: "12px 16px",
+    background: "var(--gradient-primary)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "#FFFFFF",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    transition: "all var(--transition-fast)",
+  },
+  shareButtonX: {
+    background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+  },
 };
 
 // ── Main Component ────────────────────────────────────────────
@@ -445,6 +481,21 @@ export default function EventManagementPage() {
   };
 
   const truncAddr = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  // Share handlers
+  const handleShareFarcaster = () => {
+    if (!event) return;
+    const shareText = getWinnersShareText(event.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${eventId}/results` : "";
+    shareOnFarcaster(shareText, url);
+  };
+
+  const handleShareX = () => {
+    if (!event) return;
+    const shareText = getWinnersShareText(event.title);
+    const url = typeof window !== "undefined" ? `${window.location.origin}/event/${eventId}/results` : "";
+    shareOnX(shareText, url);
+  };
 
   if (loading) {
     return (
@@ -559,6 +610,21 @@ export default function EventManagementPage() {
                     <Trophy size={16} style={{ color: "var(--amber)" }} />
                   </div>
                 ))}
+              </div>
+
+              {/* Share Winners Section */}
+              <div style={styles.shareSection}>
+                <div style={styles.shareTitle}>Share Winners</div>
+                <div style={styles.shareButtons}>
+                  <button style={styles.shareButton} onClick={handleShareFarcaster}>
+                    <Share2 size={16} />
+                    Farcaster
+                  </button>
+                  <button style={{ ...styles.shareButton, ...styles.shareButtonX }} onClick={handleShareX}>
+                    <span style={{ fontWeight: 700 }}>𝕏</span>
+                    Share
+                  </button>
+                </div>
               </div>
             </div>
           )}
