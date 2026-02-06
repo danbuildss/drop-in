@@ -76,7 +76,7 @@ const styles: Record<string, CSSProperties> = {
   },
   statCardAccent: {
     background: "var(--amber-glow)",
-    border: "1px solid rgba(217, 119, 6, 0.2)",
+    border: "1px solid rgba(0, 82, 255, 0.3)",
   },
   statIcon: {
     width: "40px",
@@ -90,7 +90,7 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--text-secondary)",
   },
   statIconAccent: {
-    background: "rgba(217, 119, 6, 0.2)",
+    background: "rgba(0, 82, 255, 0.2)",
     color: "var(--amber)",
   },
   statLabel: {

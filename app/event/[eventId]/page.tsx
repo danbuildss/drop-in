@@ -41,7 +41,7 @@ const styles: Record<string, CSSProperties> = {
     transform: "translateX(-50%)",
     width: "100%",
     height: "400px",
-    background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(217, 119, 6, 0.12), transparent 70%)",
+    background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0, 82, 255, 0.15), transparent 70%)",
     pointerEvents: "none",
   },
   container: {

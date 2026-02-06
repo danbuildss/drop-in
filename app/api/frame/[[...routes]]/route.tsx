@@ -134,7 +134,7 @@ app.frame("/", (c) => {
             height: "80px",
             borderRadius: "50%",
             background:
-              "linear-gradient(135deg, #d97706, #fbbf24, #d97706)",
+              "linear-gradient(135deg, #0052FF, #3C8AFF, #0052FF)",
             marginBottom: "24px",
             fontSize: "36px",
           }}
@@ -314,7 +314,7 @@ app.frame("/results", async (c) => {
               style={{
                 display: "flex",
                 fontSize: "18px",
-                color: "#d97706",
+                color: "#0052FF",
                 marginBottom: "16px",
               }}
             >
@@ -435,7 +435,7 @@ app.frame("/results", async (c) => {
                 height: "48px",
                 borderRadius: "50%",
                 background:
-                  "linear-gradient(135deg, #d97706, #fbbf24)",
+                  "linear-gradient(135deg, #0052FF, #3C8AFF)",
                 fontSize: "22px",
               }}
             >
@@ -449,7 +449,7 @@ app.frame("/results", async (c) => {
               display: "flex",
               width: "100%",
               height: "1px",
-              background: "rgba(217, 119, 6, 0.2)",
+              background: "rgba(0, 82, 255, 0.2)",
               marginBottom: "18px",
             }}
           />
@@ -474,11 +474,11 @@ app.frame("/results", async (c) => {
                   borderRadius: "12px",
                   background:
                     i === 0
-                      ? "rgba(217, 119, 6, 0.1)"
+                      ? "rgba(0, 82, 255, 0.1)"
                       : "rgba(255, 255, 255, 0.03)",
                   border:
                     i === 0
-                      ? "1px solid rgba(217, 119, 6, 0.2)"
+                      ? "1px solid rgba(0, 82, 255, 0.2)"
                       : "1px solid rgba(255, 255, 255, 0.05)",
                 }}
               >
@@ -492,7 +492,7 @@ app.frame("/results", async (c) => {
                     borderRadius: "8px",
                     background:
                       i === 0
-                        ? "linear-gradient(135deg, #d97706, #fbbf24)"
+                        ? "linear-gradient(135deg, #0052FF, #3C8AFF)"
                         : "rgba(255, 255, 255, 0.06)",
                     color: i === 0 ? "#0c0c0e" : "#8a8880",
                     fontSize: "12px",
@@ -506,7 +506,7 @@ app.frame("/results", async (c) => {
                     display: "flex",
                     fontSize: "16px",
                     color:
-                      i === 0 ? "#d97706" : "#e8e6e1",
+                      i === 0 ? "#0052FF" : "#e8e6e1",
                     fontWeight: i === 0 ? 600 : 400,
                   }}
                 >

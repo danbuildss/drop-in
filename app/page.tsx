@@ -50,7 +50,7 @@ const styles: Record<string, CSSProperties> = {
     transform: "translateX(-50%)",
     width: "120%",
     height: "600px",
-    background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(217, 119, 6, 0.12), transparent 70%)",
+    background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0, 82, 255, 0.15), transparent 70%)",
     pointerEvents: "none",
   },
   nav: {
@@ -117,7 +117,7 @@ const styles: Record<string, CSSProperties> = {
     gap: "8px",
     padding: "8px 16px",
     background: "var(--amber-glow)",
-    border: "1px solid rgba(217, 119, 6, 0.2)",
+    border: "1px solid rgba(0, 82, 255, 0.3)",
     borderRadius: "var(--radius-full)",
     fontSize: "13px",
     fontWeight: 500,

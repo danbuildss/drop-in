@@ -1,54 +1,62 @@
 /* ─────────────────────────────────────────────────────────────
-   app/globals.css — DropIn Giveaway v2
-   Premium dark Web3 aesthetic
+   app/globals.css — DropIn Giveaway v3
+   Blue-based Web3 aesthetic
    ───────────────────────────────────────────────────────────── */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* Core backgrounds */
-  --bg-base: #0a0f1e;
-  --bg-surface: #111827;
-  --bg-elevated: #1f2937;
-  --bg-card: rgba(17, 24, 39, 0.6);
-  --bg-card-hover: rgba(31, 41, 55, 0.8);
-  --bg-input: rgba(17, 24, 39, 0.8);
+  /* ═══ NEW BRAND COLORS ═══ */
+  --blue-primary: #0000FF;      /* CTAs, Logo */
+  --blue-base: #0052FF;         /* Headers, Nav, App chrome */
+  --blue-secondary: #3C8AFF;    /* Links */
+  --green-win: #B6F569;         /* Win / Celebration */
+  --green-settle: #4ADE80;      /* Confirmed / Settled */
+  --amber-alert: #FBBF24;       /* Alert / Expired / Retry */
+  --neutral-white: #FFFFFF;
+  --neutral-black: #000000;
+  --neutral-slate: #1E293B;     /* Onchain / Proof labels */
+  --neutral-light-gray: #E0E0E0;
+  --neutral-dark-gray: #333333;
+
+  /* Core backgrounds - dark mode */
+  --bg-base: #000000;
+  --bg-surface: #0a0a0a;
+  --bg-elevated: #141414;
+  --bg-card: rgba(10, 10, 10, 0.8);
+  --bg-card-hover: rgba(20, 20, 20, 0.9);
+  --bg-input: rgba(10, 10, 10, 0.9);
   
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-focus: #d97706;
+  --border-default: rgba(224, 224, 224, 0.15);
+  --border-focus: var(--blue-primary);
   
   /* Text */
-  --text-primary: #f9fafb;
+  --text-primary: #FFFFFF;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
-  --text-inverse: #0a0f1e;
+  --text-inverse: #000000;
   
-  /* Accent - Amber */
-  --amber-50: #fffbeb;
-  --amber-100: #fef3c7;
-  --amber-200: #fde68a;
-  --amber-300: #fcd34d;
-  --amber-400: #fbbf24;
-  --amber-500: #f59e0b;
-  --amber-600: #d97706;
-  --amber-700: #b45309;
-  --amber: #d97706;
-  --amber-glow: rgba(217, 119, 6, 0.15);
-  --amber-glow-strong: rgba(217, 119, 6, 0.3);
+  /* Legacy mappings (for existing component compatibility) */
+  --amber: var(--blue-primary);
+  --amber-glow: rgba(0, 0, 255, 0.15);
+  --amber-glow-strong: rgba(0, 0, 255, 0.25);
+  --amber-200: var(--blue-secondary);
+  --amber-400: var(--blue-base);
   
   /* Status */
-  --green: #10b981;
-  --green-glow: rgba(16, 185, 129, 0.15);
+  --green: var(--green-settle);
+  --green-glow: rgba(74, 222, 128, 0.15);
   --red: #ef4444;
   --red-glow: rgba(239, 68, 68, 0.15);
-  --blue: #3b82f6;
-  --blue-glow: rgba(59, 130, 246, 0.15);
+  --blue: var(--blue-secondary);
+  --blue-glow: rgba(60, 138, 255, 0.15);
   
   /* Gradients */
-  --gradient-amber: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(217, 119, 6, 0.15), transparent);
+  --gradient-amber: linear-gradient(135deg, var(--blue-primary) 0%, var(--blue-secondary) 100%);
+  --gradient-primary: linear-gradient(135deg, var(--blue-primary) 0%, var(--blue-secondary) 100%);
+  --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 82, 255, 0.2), transparent);
   --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
   
   /* Typography */
@@ -95,7 +103,7 @@ body {
 
 /* ── Selection ─────────────────────────────────────────────── */
 ::selection {
-  background: var(--amber-glow-strong);
+  background: rgba(0, 82, 255, 0.3);
   color: var(--text-primary);
 }
 
@@ -117,7 +125,7 @@ body {
 
 /* ── Focus states ──────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--blue-primary);
   outline-offset: 2px;
 }
 
@@ -186,8 +194,8 @@ a {
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px var(--amber-glow); }
-  50% { box-shadow: 0 0 40px var(--amber-glow-strong); }
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 82, 255, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(0, 82, 255, 0.5); }
 }
 
 @keyframes confetti {
@@ -238,8 +246,8 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-glow);
+  border-color: var(--blue-primary);
+  box-shadow: 0 0 0 3px rgba(0, 0, 255, 0.15);
 }
 
 input::placeholder, textarea::placeholder {
@@ -253,7 +261,7 @@ input::placeholder, textarea::placeholder {
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   }
 }
 

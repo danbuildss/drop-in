@@ -22,7 +22,7 @@ export function Providers({ children }: ProvidersProps) {
       config={{
         appearance: {
           theme: "dark",
-          accentColor: "#d97706",
+          accentColor: "#0000FF",
           logo: "/logo-full.png",
           showWalletLoginFirst: true,
         },
