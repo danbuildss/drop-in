@@ -59,7 +59,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "20px 40px",
+    padding: "20px clamp(16px, 4vw, 40px)",
     maxWidth: "1400px",
     margin: "0 auto",
   },
@@ -205,7 +205,7 @@ const styles: Record<string, CSSProperties> = {
   },
   stepsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
     gap: "24px",
   },
   stepCard: {
@@ -261,7 +261,7 @@ const styles: Record<string, CSSProperties> = {
   },
   featuresGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
     gap: "20px",
   },
   featureCard: {

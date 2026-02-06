@@ -272,3 +272,70 @@ input::placeholder, textarea::placeholder {
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 .stagger-6 { animation-delay: 0.3s; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Mobile: hide desktop sidebar, adjust layout */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
+  
+  /* Hide sidebar on mobile */
+  .desktop-sidebar {
+    display: none !important;
+  }
+  
+  /* Mobile navigation */
+  .mobile-nav {
+    display: flex !important;
+  }
+  
+  /* Full width main content */
+  .main-content {
+    margin-left: 0 !important;
+    padding: 16px !important;
+  }
+  
+  /* Stack grids on mobile */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .responsive-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .responsive-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .responsive-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .responsive-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .responsive-grid-3 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .responsive-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Smaller padding on mobile */
+  .mobile-padding {
+    padding: 12px !important;
+  }
+}

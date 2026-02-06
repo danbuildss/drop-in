@@ -63,7 +63,7 @@ const publicClient = createPublicClient({
 const styles: Record<string, CSSProperties> = {
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
     gap: "20px",
     marginBottom: "32px",
   },
@@ -133,7 +133,7 @@ const styles: Record<string, CSSProperties> = {
   },
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: "16px",
     marginBottom: "20px",
   },
@@ -357,7 +357,7 @@ const styles: Record<string, CSSProperties> = {
   },
   detailStats: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
     gap: "12px",
     marginBottom: "24px",
   },

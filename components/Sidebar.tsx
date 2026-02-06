@@ -14,6 +14,7 @@ import {
   LogOut,
   ChevronLeft,
   User,
+  X,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -28,16 +29,18 @@ interface NavItemProps {
 interface SidebarProps {
   collapsed?: boolean;
   onToggle?: () => void;
+  onClose?: () => void;
+  showClose?: boolean;
 }
 
 // ── Styles ────────────────────────────────────────────────────
 const styles: Record<string, CSSProperties> = {
   sidebar: {
-    position: "fixed",
+    position: "relative",
     top: 0,
     left: 0,
     height: "100vh",
-    width: "var(--sidebar-width)",
+    width: "260px",
     background: "var(--bg-surface)",
     borderRight: "1px solid var(--border-subtle)",
     display: "flex",
@@ -199,7 +202,7 @@ function NavItem({ href, icon, label, isActive }: NavItemProps) {
 }
 
 // ── Main Sidebar Component ────────────────────────────────────
-export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggle, onClose, showClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = usePrivy();
 
@@ -228,7 +231,18 @@ export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {
           <img src="/logo-icon.png" alt="DropIn" style={{ width: "36px", height: "36px", borderRadius: "10px" }} />
           {!collapsed && <span style={styles.logoText}>DropIn</span>}
         </div>
-        {onToggle && (
+        {showClose && onClose && (
+          <button
+            style={{
+              ...styles.toggleButton,
+            }}
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
+        )}
+        {!showClose && onToggle && (
           <button
             style={{
               ...styles.toggleButton,

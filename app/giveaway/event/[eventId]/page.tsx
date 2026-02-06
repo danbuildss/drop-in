@@ -77,7 +77,7 @@ const styles: Record<string, CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "1fr 380px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
     gap: "24px",
   },
   mainColumn: {
@@ -107,7 +107,7 @@ const styles: Record<string, CSSProperties> = {
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
     gap: "16px",
     marginBottom: "24px",
   },

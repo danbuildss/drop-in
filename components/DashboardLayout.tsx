@@ -4,10 +4,11 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Sidebar } from "./Sidebar";
+import { Menu, X } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
 interface DashboardLayoutProps {
@@ -22,32 +23,47 @@ const styles: Record<string, CSSProperties> = {
     background: "var(--bg-base)",
   },
   main: {
-    marginLeft: "var(--sidebar-width)",
     minHeight: "100vh",
+    transition: "margin-left 0.2s ease",
   },
   header: {
-    padding: "24px 32px",
+    padding: "16px 20px",
     borderBottom: "1px solid var(--border-subtle)",
     background: "var(--bg-base)",
     position: "sticky",
     top: 0,
     zIndex: 50,
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
   },
-  headerInner: {
-    maxWidth: "1400px",
+  menuButton: {
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "40px",
+    height: "40px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--bg-elevated)",
+    border: "1px solid var(--border-default)",
+    color: "var(--text-primary)",
+    cursor: "pointer",
+  },
+  headerContent: {
+    flex: 1,
   },
   title: {
-    fontSize: "24px",
+    fontSize: "20px",
     fontWeight: 600,
     color: "var(--text-primary)",
-    marginBottom: "4px",
+    marginBottom: "2px",
   },
   description: {
-    fontSize: "14px",
+    fontSize: "13px",
     color: "var(--text-secondary)",
   },
   content: {
-    padding: "32px",
+    padding: "24px 20px",
     maxWidth: "1400px",
   },
   loadingContainer: {
@@ -61,9 +77,22 @@ const styles: Record<string, CSSProperties> = {
     width: "40px",
     height: "40px",
     border: "3px solid var(--border-default)",
-    borderTopColor: "var(--amber)",
+    borderTopColor: "var(--blue-primary)",
     borderRadius: "50%",
     animation: "spin 1s linear infinite",
+  },
+  mobileOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.5)",
+    zIndex: 99,
+    opacity: 0,
+    visibility: "hidden",
+    transition: "opacity 0.2s ease, visibility 0.2s ease",
+  },
+  mobileOverlayActive: {
+    opacity: 1,
+    visibility: "visible",
   },
 };
 
@@ -74,6 +103,23 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const router = useRouter();
   const { ready, authenticated } = usePrivy();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Close menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [title]);
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -99,16 +145,48 @@ export function DashboardLayout({
 
   return (
     <div style={styles.container}>
-      <Sidebar />
-      <main style={styles.main}>
-        {(title || description) && (
-          <header style={styles.header}>
-            <div style={styles.headerInner}>
-              {title && <h1 style={styles.title}>{title}</h1>}
-              {description && <p style={styles.description}>{description}</p>}
-            </div>
-          </header>
-        )}
+      {/* Mobile overlay */}
+      <div 
+        style={{
+          ...styles.mobileOverlay,
+          ...(mobileMenuOpen ? styles.mobileOverlayActive : {}),
+        }}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      
+      {/* Sidebar - shown on desktop, slides in on mobile */}
+      <div style={{
+        position: isMobile ? "fixed" : "fixed",
+        left: isMobile ? (mobileMenuOpen ? 0 : "-280px") : 0,
+        top: 0,
+        height: "100vh",
+        zIndex: 100,
+        transition: "left 0.2s ease",
+      }}>
+        <Sidebar onClose={() => setMobileMenuOpen(false)} showClose={isMobile && mobileMenuOpen} />
+      </div>
+      
+      <main style={{
+        ...styles.main,
+        marginLeft: isMobile ? 0 : "var(--sidebar-width)",
+      }}>
+        {/* Header */}
+        <header style={styles.header}>
+          <button 
+            style={{
+              ...styles.menuButton,
+              display: isMobile ? "flex" : "none",
+            }}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+          <div style={styles.headerContent}>
+            {title && <h1 style={styles.title}>{title}</h1>}
+            {description && <p style={styles.description}>{description}</p>}
+          </div>
+        </header>
+        
         <div style={styles.content}>{children}</div>
       </main>
     </div>
