@@ -5,11 +5,11 @@
 import { encodeFunctionData, type Hex, type Address } from "viem";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Deployed contract address on Base Sepolia (testnet)
+//  Deployed contract address on Base mainnet
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const DROP_IN_GIVEAWAY_ADDRESS: Address =
-  "0xAA49d591b259324671792C8f972486403895Ff9b";
+  "0x9A86aC57956Ba1Eed1aD6720f9907350AAEac517";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  ABI (only the functions the frontend needs)

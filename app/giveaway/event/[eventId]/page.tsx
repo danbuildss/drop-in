@@ -686,7 +686,7 @@ export default function EventManagementPage() {
           {/* BaseScan Link */}
           {event.tx_hash && (
             <a
-              href={`https://sepolia.basescan.org/tx/${event.tx_hash}`}
+              href={`https://basescan.org/tx/${event.tx_hash}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{

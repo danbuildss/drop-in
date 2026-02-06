@@ -790,7 +790,7 @@ export default function DashboardPage() {
               )}
               {selectedEvent.tx_hash && (
                 <a
-                  href={`https://sepolia.basescan.org/tx/${selectedEvent.tx_hash}`}
+                  href={`https://basescan.org/tx/${selectedEvent.tx_hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ ...styles.buttonSecondary, textDecoration: "none" }}
