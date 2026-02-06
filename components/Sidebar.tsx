@@ -16,11 +16,13 @@ import {
   User,
   X,
   Mail,
+  Shield,
 } from "lucide-react";
 
 // Admin wallets that can see admin links
 const ADMIN_WALLETS = [
-  "0xAA49d591b259324671792C8f972486403895Ff9b", // Dan
+  "0xAA49d591b259324671792C8f972486403895Ff9b",
+  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25", // Dan
 ].map(w => w.toLowerCase());
 import type { CSSProperties, ReactNode } from "react";
 
@@ -223,8 +225,11 @@ export function Sidebar({ collapsed = false, onToggle, onClose, showClose }: Sid
   const navItems: Array<{ href: string; icon: ReactNode; label: string }> = [
     { href: "/giveaway", icon: <LayoutDashboard size={20} />, label: "Dashboard" },
     { href: "/giveaway/events", icon: <Calendar size={20} />, label: "Events" },
-    ...(isAdmin ? [{ href: "/giveaway/admin/subscribers", icon: <Mail size={20} />, label: "Subscribers" }] : []),
     { href: "/giveaway/settings", icon: <Settings size={20} />, label: "Settings" },
+    ...(isAdmin ? [
+      { href: "/admin", icon: <Shield size={20} />, label: "Admin" },
+      { href: "/giveaway/admin/subscribers", icon: <Mail size={20} />, label: "Subscribers" },
+    ] : []),
   ];
 
   return (

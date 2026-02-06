@@ -26,8 +26,11 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 
-// Admin wallet (case-insensitive check)
-const ADMIN_WALLET = "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25";
+// Admin wallets (case-insensitive check)
+const ADMIN_WALLETS = [
+  "0xAA49d591b259324671792C8f972486403895Ff9b",
+  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25",
+].map(w => w.toLowerCase());
 
 // ── Types ─────────────────────────────────────────────────────
 interface AdminStats {
@@ -367,7 +370,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   // Check if user is admin
-  const isAdmin = walletAddress?.toLowerCase() === ADMIN_WALLET.toLowerCase();
+  const isAdmin = walletAddress && ADMIN_WALLETS.includes(walletAddress.toLowerCase());
 
   // Fetch stats
   const fetchStats = useCallback(async () => {

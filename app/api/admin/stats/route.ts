@@ -8,8 +8,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
-// Admin wallet (case-insensitive)
-const ADMIN_WALLET = "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25";
+// Admin wallets (case-insensitive)
+const ADMIN_WALLETS = [
+  "0xAA49d591b259324671792C8f972486403895Ff9b",
+  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25",
+].map(w => w.toLowerCase());
 
 // Helper to get start of week (Sunday)
 function getStartOfWeek(date: Date): Date {
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest) {
   // Check admin authorization
   const walletHeader = req.headers.get("x-wallet-address");
   
-  if (!walletHeader || walletHeader.toLowerCase() !== ADMIN_WALLET.toLowerCase()) {
+  if (!walletHeader || !ADMIN_WALLETS.includes(walletHeader.toLowerCase())) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 403 }
