@@ -22,7 +22,8 @@ import type { CSSProperties } from "react";
 
 // Admin wallets that can access this page
 const ADMIN_WALLETS = [
-  "0xAA49d591b259324671792C8f972486403895Ff9b", // Dan
+  "0xAA49d591b259324671792C8f972486403895Ff9b",
+  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25", // Dan
 ].map(w => w.toLowerCase());
 
 interface Subscriber {
