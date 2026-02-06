@@ -6,7 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { 
   Calendar, 
   QrCode, 
@@ -15,7 +15,10 @@ import {
   Shield, 
   Zap, 
   Users,
-  ChevronRight 
+  ChevronRight,
+  Mail,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -293,6 +296,96 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--text-muted)",
     lineHeight: 1.5,
   },
+  // Email capture section
+  emailSection: {
+    padding: "80px 40px",
+    maxWidth: "600px",
+    margin: "0 auto",
+    textAlign: "center" as const,
+  },
+  emailCard: {
+    background: "var(--bg-card)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "var(--radius-xl)",
+    padding: "40px 32px",
+    backdropFilter: "blur(10px)",
+  },
+  emailIcon: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "var(--radius-lg)",
+    background: "var(--amber-glow)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 20px",
+    color: "var(--amber)",
+  },
+  emailTitle: {
+    fontSize: "24px",
+    fontWeight: 700,
+    color: "var(--text-primary)",
+    marginBottom: "8px",
+  },
+  emailSubtext: {
+    fontSize: "14px",
+    color: "var(--text-secondary)",
+    marginBottom: "24px",
+    lineHeight: 1.5,
+  },
+  emailForm: {
+    display: "flex",
+    gap: "12px",
+    maxWidth: "400px",
+    margin: "0 auto",
+  },
+  emailInput: {
+    flex: 1,
+    padding: "14px 16px",
+    background: "var(--bg-input)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    outline: "none",
+    transition: "border-color var(--transition-fast)",
+  },
+  emailButton: {
+    padding: "14px 24px",
+    background: "var(--gradient-amber)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-inverse)",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: "all var(--transition-fast)",
+    whiteSpace: "nowrap" as const,
+  },
+  emailButtonDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed",
+  },
+  emailSuccess: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    padding: "16px",
+    background: "var(--green-glow)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--green)",
+    fontSize: "15px",
+    fontWeight: 500,
+  },
+  emailError: {
+    marginTop: "12px",
+    fontSize: "13px",
+    color: "var(--red)",
+  },
   footer: {
     borderTop: "1px solid var(--border-subtle)",
     padding: "40px",
@@ -356,6 +449,11 @@ export default function LandingPage() {
   const { login, authenticated, ready } = usePrivy();
   const howItWorksRef = useRef<HTMLElement>(null);
 
+  // Email capture state
+  const [email, setEmail] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [emailError, setEmailError] = useState("");
+
   // Redirect to dashboard after successful authentication
   useEffect(() => {
     if (ready && authenticated) {
@@ -373,6 +471,34 @@ export default function LandingPage() {
 
   const scrollToHowItWorks = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleEmailSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || emailStatus === "loading") return;
+
+    setEmailStatus("loading");
+    setEmailError("");
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), source: "landing" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to subscribe");
+      }
+
+      setEmailStatus("success");
+      setEmail("");
+    } catch (err) {
+      setEmailStatus("error");
+      setEmailError(err instanceof Error ? err.message : "Something went wrong");
+    }
   };
 
   return (
@@ -476,6 +602,55 @@ export default function LandingPage() {
             description="Support for MetaMask, Coinbase Wallet, WalletConnect, email, and Google."
             delay={200}
           />
+        </div>
+      </section>
+
+      {/* Email Capture Section */}
+      <section style={styles.emailSection} className="landing-section">
+        <div style={styles.emailCard} className="card-hover">
+          <div style={styles.emailIcon}>
+            <Mail size={28} />
+          </div>
+          <h2 style={styles.emailTitle}>Stay in the loop</h2>
+          <p style={styles.emailSubtext}>
+            Get notified about new features and upcoming events
+          </p>
+          
+          {emailStatus === "success" ? (
+            <div style={styles.emailSuccess}>
+              <CheckCircle size={20} />
+              You&apos;re in! 🎉
+            </div>
+          ) : (
+            <form onSubmit={handleEmailSubscribe} style={styles.emailForm} className="email-form-mobile">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.emailInput}
+                disabled={emailStatus === "loading"}
+              />
+              <button
+                type="submit"
+                style={{
+                  ...styles.emailButton,
+                  ...(emailStatus === "loading" ? styles.emailButtonDisabled : {}),
+                }}
+                disabled={emailStatus === "loading"}
+              >
+                {emailStatus === "loading" ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  "Subscribe"
+                )}
+              </button>
+            </form>
+          )}
+          
+          {emailStatus === "error" && emailError && (
+            <p style={styles.emailError}>{emailError}</p>
+          )}
         </div>
       </section>
 

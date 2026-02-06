@@ -19,6 +19,7 @@ import {
   Gift,
   Award,
   Star,
+  Mail,
 } from "lucide-react";
 import { apiGetEventSummary, apiCheckIn, type ApiEventSummary } from "@/lib/api";
 import { shareOnFarcaster, shareOnX, getCheckInShareText } from "@/lib/share";
@@ -414,6 +415,66 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--amber)",
     textDecoration: "none",
   },
+  // Email capture styles
+  emailPrompt: {
+    marginTop: "20px",
+    padding: "16px",
+    background: "var(--bg-elevated)",
+    borderRadius: "var(--radius-md)",
+  },
+  emailPromptTitle: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "var(--text-primary)",
+    marginBottom: "4px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  emailPromptText: {
+    fontSize: "12px",
+    color: "var(--text-muted)",
+    marginBottom: "12px",
+  },
+  emailForm: {
+    display: "flex",
+    gap: "8px",
+  },
+  emailInput: {
+    flex: 1,
+    padding: "10px 12px",
+    background: "var(--bg-input)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    outline: "none",
+  },
+  emailSubmitButton: {
+    padding: "10px 16px",
+    background: "var(--gradient-amber)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-inverse)",
+    fontSize: "14px",
+    fontWeight: 500,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    whiteSpace: "nowrap" as const,
+  },
+  emailSuccess: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "12px",
+    background: "var(--green-glow)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--green)",
+    fontSize: "14px",
+    fontWeight: 500,
+  },
 };
 
 // ── Main Component ────────────────────────────────────────────
@@ -429,6 +490,11 @@ export default function CheckInPage() {
   const [checkInState, setCheckInState] = useState<CheckInState>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attendeeStats, setAttendeeStats] = useState<AttendeeStats>({ totalCheckIns: 0, loading: false });
+  
+  // Email capture state
+  const [emailInput, setEmailInput] = useState<string>("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const userEmail = user?.email?.address;
 
   const walletAddress = user?.wallet?.address;
   const displayAddress = walletAddress
@@ -498,6 +564,24 @@ export default function CheckInPage() {
 
       // Increment local attendee stats
       setAttendeeStats(prev => ({ ...prev, totalCheckIns: prev.totalCheckIns + 1 }));
+
+      // Auto-capture email if user has one linked via Privy
+      if (userEmail) {
+        try {
+          await fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              source: "post-checkin",
+              wallet: walletAddress,
+            }),
+          });
+          setEmailStatus("success");
+        } catch {
+          // Silent fail - not critical
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
 
@@ -510,7 +594,36 @@ export default function CheckInPage() {
         setErrorMsg(msg);
       }
     }
-  }, [walletAddress, event, eventId]);
+  }, [walletAddress, event, eventId, userEmail]);
+
+  // Email subscribe handler
+  const handleEmailSubscribe = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput.trim() || emailStatus === "loading") return;
+
+    setEmailStatus("loading");
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailInput.trim(),
+          source: "post-checkin",
+          wallet: walletAddress,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to subscribe");
+      }
+
+      setEmailStatus("success");
+    } catch {
+      setEmailStatus("error");
+    }
+  }, [emailInput, emailStatus, walletAddress]);
 
   // Share handlers
   const handleShareFarcaster = () => {
@@ -621,6 +734,62 @@ export default function CheckInPage() {
                 </button>
               </div>
             </div>
+
+            {/* Email capture prompt (only if user doesn't have email linked) */}
+            {!userEmail && (
+              <div style={styles.emailPrompt}>
+                {emailStatus === "success" ? (
+                  <div style={styles.emailSuccess}>
+                    <CheckCircle size={16} />
+                    You&apos;re subscribed! 🎉
+                  </div>
+                ) : (
+                  <>
+                    <div style={styles.emailPromptTitle}>
+                      <Mail size={16} />
+                      Want updates?
+                    </div>
+                    <div style={styles.emailPromptText}>
+                      Get notified about new events and features
+                    </div>
+                    <form onSubmit={handleEmailSubscribe} style={styles.emailForm}>
+                      <input
+                        type="email"
+                        placeholder="Your email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        style={styles.emailInput}
+                        disabled={emailStatus === "loading"}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          ...styles.emailSubmitButton,
+                          opacity: emailStatus === "loading" ? 0.7 : 1,
+                        }}
+                        disabled={emailStatus === "loading"}
+                      >
+                        {emailStatus === "loading" ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          "Subscribe"
+                        )}
+                      </button>
+                    </form>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Show success if email was auto-captured */}
+            {userEmail && emailStatus === "success" && (
+              <div style={styles.emailPrompt}>
+                <div style={styles.emailSuccess}>
+                  <CheckCircle size={16} />
+                  Email saved for updates
+                </div>
+              </div>
+            )}
           </div>
           <div style={styles.footer}>
             <span style={styles.footerText}>
