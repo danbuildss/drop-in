@@ -111,6 +111,7 @@ export async function apiDeleteEvent(
 export async function apiCheckIn(input: {
   eventId: string;
   walletAddress: string;
+  token?: string;
 }): Promise<ApiCheckIn> {
   const res = await fetch("/api/checkins", {
     method: "POST",

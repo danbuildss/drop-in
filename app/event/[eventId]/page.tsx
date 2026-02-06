@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   CheckCircle,
@@ -480,7 +480,9 @@ const styles: Record<string, CSSProperties> = {
 // ── Main Component ────────────────────────────────────────────
 export default function CheckInPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const eventId = params?.eventId as string;
+  const qrToken = searchParams?.get("t") ?? undefined; // Rotating QR token
   const { login, authenticated, user, ready } = usePrivy();
 
   // State
@@ -490,6 +492,7 @@ export default function CheckInPage() {
   const [checkInState, setCheckInState] = useState<CheckInState>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [attendeeStats, setAttendeeStats] = useState<AttendeeStats>({ totalCheckIns: 0, loading: false });
+  const [tokenExpired, setTokenExpired] = useState<boolean>(false);
   
   // Email capture state
   const [emailInput, setEmailInput] = useState<string>("");
@@ -549,11 +552,13 @@ export default function CheckInPage() {
 
     setCheckInState("loading");
     setErrorMsg("");
+    setTokenExpired(false);
 
     try {
       await apiCheckIn({
         eventId: event.id,
         walletAddress,
+        token: qrToken,
       });
       setCheckInState("success");
 
@@ -589,12 +594,16 @@ export default function CheckInPage() {
         setCheckInState("already");
       } else if (msg.includes("locked")) {
         setCheckInState("locked");
+      } else if (msg.includes("QR code expired") || msg.includes("expired")) {
+        setTokenExpired(true);
+        setCheckInState("error");
+        setErrorMsg("QR code expired — please scan the current code");
       } else {
         setCheckInState("error");
         setErrorMsg(msg);
       }
     }
-  }, [walletAddress, event, eventId, userEmail]);
+  }, [walletAddress, event, eventId, userEmail, qrToken]);
 
   // Email subscribe handler
   const handleEmailSubscribe = useCallback(async (e: React.FormEvent) => {
@@ -887,18 +896,32 @@ export default function CheckInPage() {
         <div style={styles.container}>
           <div style={styles.errorCard}>
             <div style={styles.errorIcon}>
-              <AlertCircle size={32} />
+              {tokenExpired ? (
+                <span style={{ fontSize: "32px" }}>⏰</span>
+              ) : (
+                <AlertCircle size={32} />
+              )}
             </div>
-            <div style={styles.successTitle}>Check-in failed</div>
+            <div style={styles.successTitle}>
+              {tokenExpired ? "QR Code Expired" : "Check-in failed"}
+            </div>
             <div style={styles.successText}>
-              {errorMsg || "Something went wrong. Please try again."}
+              {tokenExpired 
+                ? "This QR code has expired. Please scan the current code displayed at the event."
+                : (errorMsg || "Something went wrong. Please try again.")}
             </div>
-            <button
-              style={{ ...styles.buttonSecondary, marginTop: "20px" }}
-              onClick={() => setCheckInState("idle")}
-            >
-              Try Again
-            </button>
+            {tokenExpired ? (
+              <div style={{ marginTop: "20px", fontSize: "14px", color: "var(--text-muted)" }}>
+                📱 Look for the QR code on the event screen
+              </div>
+            ) : (
+              <button
+                style={{ ...styles.buttonSecondary, marginTop: "20px" }}
+                onClick={() => setCheckInState("idle")}
+              >
+                Try Again
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  POST /api/checkins — Gasless attendee check-in
-//  Body: { eventId (uuid), walletAddress }
+//  Body: { eventId (uuid), walletAddress, token? }
 //
 //  GET /api/checkins?eventId=xxx — List attendees for an event
 //  GET /api/checkins?wallet=0x... — Get check-in count for a wallet
@@ -8,11 +8,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { validateQRToken } from "@/lib/qr-token";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { eventId, walletAddress } = body;
+    const { eventId, walletAddress, token } = body;
 
     if (!eventId || !walletAddress) {
       return NextResponse.json(
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     // Check if event exists and is not locked
     const { data: event } = await supabaseAdmin
       .from("events")
-      .select("id, is_locked, max_attendees")
+      .select("id, chain_event_id, is_locked, max_attendees")
       .eq("id", eventId)
       .single();
 
@@ -48,6 +49,22 @@ export async function POST(req: NextRequest) {
       if (count !== null && count >= event.max_attendees) {
         return NextResponse.json(
           { error: "Event is at full capacity" },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Validate rotating QR token if provided
+    // Token is required when scanning the rotating QR code
+    // Without token = direct URL access (still allowed but less secure)
+    if (token) {
+      // Use chain_event_id for token validation (that's what's in the URL)
+      const chainEventId = event.chain_event_id?.toString() || eventId;
+      const isValidToken = validateQRToken(chainEventId, token);
+      
+      if (!isValidToken) {
+        return NextResponse.json(
+          { error: "QR code expired — please scan the current code" },
           { status: 403 }
         );
       }

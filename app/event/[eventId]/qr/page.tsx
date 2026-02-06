@@ -2,15 +2,24 @@
 //  app/event/[eventId]/qr/page.tsx — Shareable QR Code Display
 //  
 //  Public page for displaying QR code at events.
+//  QR code rotates every 30 seconds to prevent screenshot fraud.
 //  Optimized for big screens and mobile scanning.
 // ─────────────────────────────────────────────────────────────
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { apiGetEventSummary, type ApiEventSummary } from "@/lib/api";
 import type { CSSProperties } from "react";
+
+// ── Types ─────────────────────────────────────────────────────
+interface QRTokenResponse {
+  token: string;
+  expiresAt: number;
+  secondsRemaining: number;
+  bucketSize: number;
+}
 
 // ── Styles ────────────────────────────────────────────────────
 const styles: Record<string, CSSProperties> = {
@@ -78,12 +87,56 @@ const styles: Record<string, CSSProperties> = {
     background: "#FFFFFF",
     borderRadius: "24px",
     boxShadow: "0 0 60px rgba(0, 82, 255, 0.3)",
-    marginBottom: "32px",
+    marginBottom: "16px",
+    position: "relative",
   },
   qrImage: {
     display: "block",
     width: "min(300px, 70vw)",
     height: "min(300px, 70vw)",
+    transition: "opacity 0.2s ease",
+  },
+  rotationIndicator: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    background: "rgba(0, 82, 255, 0.2)",
+    borderRadius: "100px",
+    marginBottom: "24px",
+    border: "1px solid rgba(0, 82, 255, 0.3)",
+  },
+  rotationText: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: "#3C8AFF",
+  },
+  rotationCountdown: {
+    fontSize: "16px",
+    fontWeight: 700,
+    color: "#FFFFFF",
+    minWidth: "32px",
+  },
+  rotationIcon: {
+    width: "16px",
+    height: "16px",
+    animation: "spin 2s linear infinite",
+  },
+  securityBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 12px",
+    background: "rgba(74, 222, 128, 0.1)",
+    borderRadius: "100px",
+    marginBottom: "20px",
+    border: "1px solid rgba(74, 222, 128, 0.3)",
+  },
+  securityText: {
+    fontSize: "12px",
+    fontWeight: 500,
+    color: "#4ADE80",
   },
   instructions: {
     fontSize: "18px",
@@ -163,10 +216,59 @@ export default function QRDisplayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [currentToken, setCurrentToken] = useState<string>("");
+  const [countdown, setCountdown] = useState<number>(30);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const checkInUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/event/${eventId}`
-    : "";
+  // Build check-in URL with token
+  const getCheckInUrl = useCallback((token: string) => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/event/${eventId}?t=${token}`;
+  }, [eventId]);
+
+  // Fetch new token from server
+  const fetchToken = useCallback(async (): Promise<QRTokenResponse | null> => {
+    try {
+      const res = await fetch(`/api/qr-token?eventId=${eventId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }, [eventId]);
+
+  // Generate QR code for a URL
+  const generateQRCode = useCallback(async (url: string) => {
+    try {
+      const QRCode = await import("qrcode");
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 400,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+        errorCorrectionLevel: "H",
+      });
+      return dataUrl;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Refresh token and QR code
+  const refreshQR = useCallback(async () => {
+    setIsRefreshing(true);
+    const tokenData = await fetchToken();
+    
+    if (tokenData) {
+      setCurrentToken(tokenData.token);
+      setCountdown(tokenData.secondsRemaining);
+      
+      const url = getCheckInUrl(tokenData.token);
+      const qr = await generateQRCode(url);
+      if (qr) setQrDataUrl(qr);
+    }
+    
+    setIsRefreshing(false);
+  }, [fetchToken, getCheckInUrl, generateQRCode]);
 
   // Fetch event data
   useEffect(() => {
@@ -190,19 +292,27 @@ export default function QRDisplayPage() {
       });
   }, [eventId]);
 
-  // Generate QR code (dynamic import to avoid SSR issues)
+  // Initial token fetch and setup
   useEffect(() => {
-    if (!checkInUrl) return;
-    
-    import("qrcode").then((QRCode) => {
-      QRCode.toDataURL(checkInUrl, {
-        width: 400,
-        margin: 2,
-        color: { dark: "#000000", light: "#ffffff" },
-        errorCorrectionLevel: "H",
-      }).then(setQrDataUrl).catch(console.error);
-    }).catch(console.error);
-  }, [checkInUrl]);
+    if (!eventId || loading || error) return;
+
+    // Initial fetch
+    refreshQR();
+
+    // Set up countdown timer (decrements every second)
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Time to refresh - trigger refresh and reset
+          refreshQR();
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [eventId, loading, error, refreshQR]);
 
   // Auto-refresh attendee count every 10 seconds
   useEffect(() => {
@@ -245,6 +355,18 @@ export default function QRDisplayPage() {
     <div style={styles.page}>
       <div style={styles.glow} />
       
+      {/* CSS for animations */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+      
       <div style={styles.container}>
         {/* Logo */}
         <div style={styles.logo}>
@@ -256,12 +378,40 @@ export default function QRDisplayPage() {
         <h1 style={styles.title}>{event.title}</h1>
         <p style={styles.subtitle}>Scan to check in for the giveaway</p>
 
+        {/* Security badge */}
+        <div style={styles.securityBadge}>
+          <span>🔒</span>
+          <span style={styles.securityText}>Anti-fraud protected</span>
+        </div>
+
         {/* QR Code */}
         {qrDataUrl && (
           <div style={styles.qrWrapper}>
-            <img src={qrDataUrl} alt="Check-in QR Code" style={styles.qrImage} />
+            <img 
+              src={qrDataUrl} 
+              alt="Check-in QR Code" 
+              style={{
+                ...styles.qrImage,
+                opacity: isRefreshing ? 0.5 : 1,
+              }} 
+            />
           </div>
         )}
+
+        {/* Rotation indicator with countdown */}
+        <div style={styles.rotationIndicator}>
+          <svg 
+            style={styles.rotationIcon} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+          >
+            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          <span style={styles.rotationText}>QR updates in</span>
+          <span style={styles.rotationCountdown}>{countdown}s</span>
+        </div>
 
         {/* Instructions */}
         <p style={styles.instructions}>📱 Open camera & scan</p>
@@ -273,8 +423,10 @@ export default function QRDisplayPage() {
           {event.attendee_count} checked in
         </div>
 
-        {/* URL fallback */}
-        <div style={styles.url}>{checkInUrl}</div>
+        {/* URL fallback (without token for display) */}
+        <div style={styles.url}>
+          dropin.whybase.xyz/event/{eventId}
+        </div>
       </div>
 
       {/* Footer */}
