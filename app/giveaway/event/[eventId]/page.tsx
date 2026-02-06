@@ -19,6 +19,7 @@ import {
   AlertCircle,
   ArrowLeft,
   QrCode,
+  Maximize2,
 } from "lucide-react";
 import Link from "next/link";
 // QRCode imported dynamically to avoid SSR canvas issues
@@ -591,6 +592,29 @@ export default function EventManagementPage() {
                   <ExternalLink size={14} />
                 </a>
               </div>
+              <a
+                href={`/event/${eventId}/qr`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  marginTop: "12px",
+                  padding: "10px 16px",
+                  background: "var(--gradient-primary)",
+                  borderRadius: "var(--radius-md)",
+                  color: "#FFFFFF",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  transition: "opacity 0.15s ease",
+                }}
+              >
+                <Maximize2 size={14} />
+                Display Full Screen
+              </a>
             </div>
           </div>
 
