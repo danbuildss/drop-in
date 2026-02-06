@@ -39,80 +39,91 @@ export async function GET(req: NextRequest) {
     const lastWeekStart = new Date(thisWeekStart);
     lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
-    // Run all queries in parallel
-    const [
-      eventsResult,
-      checkInsResult,
-      emailSubsResult,
-      topEventsResult,
-      recentCheckInsResult,
-      thisWeekEventsResult,
-      lastWeekEventsResult,
-      thisWeekCheckInsResult,
-      lastWeekCheckInsResult,
-    ] = await Promise.all([
-      // Total events
-      supabaseAdmin
-        .from("events")
-        .select("id", { count: "exact", head: true }),
-      
-      // Total check-ins & unique wallets
-      supabaseAdmin
+    // Run queries with error handling for each
+    let eventsResult, checkInsResult, emailSubsResult, topEventsResult, recentCheckInsResult;
+    let thisWeekEventsResult, lastWeekEventsResult, thisWeekCheckInsResult, lastWeekCheckInsResult;
+
+    // Total events
+    eventsResult = await supabaseAdmin
+      .from("events")
+      .select("id", { count: "exact", head: true });
+    
+    // Total check-ins & unique wallets
+    checkInsResult = await supabaseAdmin
+      .from("check_ins")
+      .select("wallet_address");
+    
+    // Email subscribers by source (may not exist yet)
+    emailSubsResult = await supabaseAdmin
+      .from("email_subscriptions")
+      .select("source");
+    if (emailSubsResult.error) {
+      emailSubsResult = { data: [], error: null };
+    }
+    
+    // Top 10 events - query events directly with check-in counts
+    const eventsWithCounts = await supabaseAdmin
+      .from("events")
+      .select("id, title, organizer, created_at");
+    
+    // Get check-in counts per event
+    const checkInCounts: Record<string, number> = {};
+    if (checkInsResult.data) {
+      const checkInsByEvent = await supabaseAdmin
         .from("check_ins")
-        .select("wallet_address"),
-      
-      // Email subscribers by source
-      supabaseAdmin
-        .from("email_subscriptions")
-        .select("source"),
-      
-      // Top 10 events by check-in count
-      supabaseAdmin
-        .from("v_event_summary")
-        .select("id, title, organizer, attendee_count, created_at")
-        .order("attendee_count", { ascending: false })
-        .limit(10),
-      
-      // Recent 20 check-ins with event details
-      supabaseAdmin
-        .from("check_ins")
-        .select(`
-          id,
-          wallet_address,
-          checked_in_at,
-          events!inner (
-            title
-          )
-        `)
-        .order("checked_in_at", { ascending: false })
-        .limit(20),
-      
-      // Events this week
-      supabaseAdmin
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", thisWeekStart.toISOString()),
-      
-      // Events last week
-      supabaseAdmin
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", lastWeekStart.toISOString())
-        .lt("created_at", thisWeekStart.toISOString()),
-      
-      // Check-ins this week
-      supabaseAdmin
-        .from("check_ins")
-        .select("id", { count: "exact", head: true })
-        .gte("checked_in_at", thisWeekStart.toISOString()),
-      
-      // Check-ins last week
-      supabaseAdmin
-        .from("check_ins")
-        .select("id", { count: "exact", head: true })
-        .gte("checked_in_at", lastWeekStart.toISOString())
-        .lt("checked_in_at", thisWeekStart.toISOString()),
-    ]);
+        .select("event_id");
+      checkInsByEvent.data?.forEach((c: any) => {
+        checkInCounts[c.event_id] = (checkInCounts[c.event_id] || 0) + 1;
+      });
+    }
+    
+    // Combine events with counts
+    topEventsResult = {
+      data: eventsWithCounts.data?.map(e => ({
+        ...e,
+        attendee_count: checkInCounts[e.id] || 0
+      })).sort((a, b) => b.attendee_count - a.attendee_count).slice(0, 10) || [],
+      error: null
+    };
+    
+    // Recent 20 check-ins
+    recentCheckInsResult = await supabaseAdmin
+      .from("check_ins")
+      .select("id, wallet_address, checked_in_at, event_id")
+      .order("checked_in_at", { ascending: false })
+      .limit(20);
+    
+    // Events this week
+    thisWeekEventsResult = await supabaseAdmin
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", thisWeekStart.toISOString());
+    
+    // Events last week
+    lastWeekEventsResult = await supabaseAdmin
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", lastWeekStart.toISOString())
+      .lt("created_at", thisWeekStart.toISOString());
+    
+    // Check-ins this week
+    thisWeekCheckInsResult = await supabaseAdmin
+      .from("check_ins")
+      .select("id", { count: "exact", head: true })
+      .gte("checked_in_at", thisWeekStart.toISOString());
+    
+    // Check-ins last week
+    lastWeekCheckInsResult = await supabaseAdmin
+      .from("check_ins")
+      .select("id", { count: "exact", head: true })
+      .gte("checked_in_at", lastWeekStart.toISOString())
+      .lt("checked_in_at", thisWeekStart.toISOString());
+    
+    // Get event titles for recent activity
+    const eventTitles: Record<string, string> = {};
+    eventsWithCounts.data?.forEach((e: any) => {
+      eventTitles[e.id] = e.title;
+    });
 
     // Calculate unique wallets from check-ins
     const allWallets = checkInsResult.data?.map(c => c.wallet_address.toLowerCase()) || [];
@@ -129,19 +140,19 @@ export async function GET(req: NextRequest) {
     });
 
     // Format top events
-    const topEvents = topEventsResult.data?.map(event => ({
+    const topEvents = topEventsResult.data?.map((event: any) => ({
       id: event.id,
       title: event.title,
       organizer: event.organizer,
-      checkInCount: event.attendee_count,
+      checkInCount: event.attendee_count || 0,
       createdAt: event.created_at,
     })) || [];
 
     // Format recent activity
-    const recentActivity = recentCheckInsResult.data?.map(checkIn => ({
+    const recentActivity = recentCheckInsResult.data?.map((checkIn: any) => ({
       id: checkIn.id,
       wallet: checkIn.wallet_address,
-      eventTitle: (checkIn.events as any)?.title || "Unknown Event",
+      eventTitle: eventTitles[checkIn.event_id] || "Unknown Event",
       timestamp: checkIn.checked_in_at,
     })) || [];
 
