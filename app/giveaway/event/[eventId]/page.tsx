@@ -633,7 +633,7 @@ export default function EventManagementPage() {
       </Link>
 
       <div style={styles.header}>
-        <h1 style={styles.title}>{event.title}</h1>
+        <h1 style={styles.title} className="event-title-mobile">{event.title}</h1>
         {event.description && (
           <p style={styles.description}>{event.description}</p>
         )}
@@ -648,11 +648,11 @@ export default function EventManagementPage() {
         </div>
       )}
 
-      <div style={styles.grid}>
+      <div style={styles.grid} className="event-grid-mobile">
         {/* Main Column */}
         <div style={styles.mainColumn}>
           {/* Stats */}
-          <div style={styles.statsGrid}>
+          <div style={styles.statsGrid} className="stats-grid-mobile">
             <div style={styles.statCard}>
               <div style={styles.statValue}>{event.attendee_count}</div>
               <div style={styles.statLabel}>Checked In</div>
@@ -723,7 +723,7 @@ export default function EventManagementPage() {
               {/* Share Winners Section */}
               <div style={styles.shareSection}>
                 <div style={styles.shareTitle}>Share Winners</div>
-                <div style={styles.shareButtons}>
+                <div style={styles.shareButtons} className="share-buttons-mobile">
                   <button style={styles.shareButton} onClick={handleShareFarcaster}>
                     <Share2 size={16} />
                     Farcaster

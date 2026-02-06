@@ -387,8 +387,8 @@ export default function LandingPage() {
           <span>DropIn</span>
         </div>
         <div style={styles.navLinks}>
-          <span style={{...styles.navLink, cursor: "pointer"}} onClick={scrollToHowItWorks}>How it works</span>
-          <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.navLink}>Docs</a>
+          <span style={{...styles.navLink, cursor: "pointer"}} onClick={scrollToHowItWorks} className="landing-nav-links">How it works</span>
+          <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.navLink} className="landing-nav-links">Docs</a>
           <button 
             style={styles.navButton}
             onClick={handleGetStarted}
@@ -399,7 +399,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section style={styles.hero}>
+      <section style={styles.hero} className="landing-hero">
         <div style={styles.badge} className="animate-fadeInUp">
           <Shield size={14} />
           Verified on Base
@@ -425,7 +425,7 @@ export default function LandingPage() {
       </section>
 
       {/* Steps Section */}
-      <section ref={howItWorksRef} style={styles.stepsSection} id="how-it-works">
+      <section ref={howItWorksRef} style={styles.stepsSection} id="how-it-works" className="landing-section">
         <p style={styles.sectionLabel}>How it works</p>
         <h2 style={styles.sectionTitle}>Three simple steps</h2>
         <div style={styles.stepsGrid}>
@@ -454,7 +454,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section style={styles.featuresSection}>
+      <section style={styles.featuresSection} className="landing-section">
         <p style={styles.sectionLabel}>Why DropIn</p>
         <h2 style={styles.sectionTitle}>Built for trust</h2>
         <div style={styles.featuresGrid}>
@@ -481,11 +481,11 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer style={styles.footer}>
-        <div style={styles.footerInner}>
+        <div style={styles.footerInner} className="landing-footer-inner">
           <span style={styles.footerText}>
             © 2026 DropIn. Built on Base.
           </span>
-          <div style={styles.footerLinks}>
+          <div style={styles.footerLinks} className="landing-footer-links">
             <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Documentation</a>
             <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>GitHub</a>
             <a href="https://x.com/whybasemedia" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Twitter</a>

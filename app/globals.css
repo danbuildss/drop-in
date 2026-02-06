@@ -315,6 +315,62 @@ input::placeholder, textarea::placeholder {
   .responsive-grid-4 {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  
+  /* ═══ Landing Page Mobile Fixes ═══ */
+  
+  /* Hide nav links on mobile */
+  .landing-nav-links {
+    display: none !important;
+  }
+  
+  /* Stack footer on mobile */
+  .landing-footer-inner {
+    flex-direction: column !important;
+    gap: 16px !important;
+    text-align: center !important;
+  }
+  
+  .landing-footer-links {
+    justify-content: center !important;
+  }
+  
+  /* Reduce hero padding on mobile */
+  .landing-hero {
+    padding: 40px 20px 40px !important;
+  }
+  
+  /* Reduce section padding on mobile */
+  .landing-section {
+    padding: 40px 16px !important;
+  }
+  
+  /* ═══ Dashboard Mobile Fixes ═══ */
+  
+  /* Detail panel full width on mobile */
+  .detail-panel-mobile {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Stats grid: 2 columns on mobile */
+  .stats-grid-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Form grid: single column on mobile */
+  .form-grid-mobile {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Event management grid: single column on mobile */
+  .event-grid-mobile {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Share buttons: stack on very small screens */
+  .share-buttons-mobile {
+    flex-direction: column !important;
+  }
 }
 
 /* Tablet */
@@ -337,5 +393,20 @@ input::placeholder, textarea::placeholder {
   /* Smaller padding on mobile */
   .mobile-padding {
     padding: 12px !important;
+  }
+  
+  /* Stats: single column on very small screens */
+  .stats-grid-mobile {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Reduce stat card padding */
+  .stat-card-mobile {
+    padding: 16px !important;
+  }
+  
+  /* Smaller title on mobile */
+  .event-title-mobile {
+    font-size: 22px !important;
   }
 }

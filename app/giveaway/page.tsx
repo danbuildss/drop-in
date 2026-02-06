@@ -622,7 +622,7 @@ export default function DashboardPage() {
       description="Manage your events and giveaways"
     >
       {/* Stats Grid */}
-      <div style={styles.grid}>
+      <div style={styles.grid} className="stats-grid-mobile">
         <StatCard
           icon={<Calendar size={20} />}
           label="Total Events"
@@ -657,7 +657,7 @@ export default function DashboardPage() {
         </div>
         <div style={styles.card}>
           <form style={styles.createForm} onSubmit={handleCreateEvent}>
-            <div style={styles.formGrid}>
+            <div style={styles.formGrid} className="form-grid-mobile">
               <div style={styles.formGroup}>
                 <label style={styles.label}>Event Title *</label>
                 <input
@@ -752,7 +752,7 @@ export default function DashboardPage() {
       {selectedEvent && (
         <>
           <div style={styles.backdrop} onClick={() => setSelectedEvent(null)} />
-          <div style={styles.detailPanel}>
+          <div style={styles.detailPanel} className="detail-panel-mobile">
             <div style={styles.detailHeader}>
               <h3 style={styles.detailTitle}>{selectedEvent.title}</h3>
               <button
@@ -763,7 +763,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <div style={styles.detailContent}>
-              <div style={styles.detailStats}>
+              <div style={styles.detailStats} className="stats-grid-mobile">
                 <div style={styles.detailStatCard}>
                   <div style={styles.detailStatValue}>
                     {selectedEvent.attendee_count}
@@ -825,7 +825,7 @@ export default function DashboardPage() {
             {selectedEvent.giveaway_executed && (
               <div style={{ padding: "0 24px 20px", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Share Results</div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px" }} className="share-buttons-mobile">
                   <button
                     onClick={handleShareFarcaster}
                     style={{

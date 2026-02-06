@@ -428,7 +428,7 @@ export default function EventResultsPage() {
           {/* Share Section */}
           <div style={styles.shareSection}>
             <div style={styles.shareTitle}>Share this event</div>
-            <div style={styles.shareButtons}>
+            <div style={styles.shareButtons} className="share-buttons-mobile">
               <button style={styles.shareButton} onClick={handleShareFarcaster}>
                 <Share2 size={16} />
                 Farcaster

@@ -610,7 +610,7 @@ export default function CheckInPage() {
             {/* Share section */}
             <div style={styles.shareSection}>
               <div style={styles.shareTitle}>Share your check-in</div>
-              <div style={styles.shareButtons}>
+              <div style={styles.shareButtons} className="share-buttons-mobile">
                 <button style={styles.shareButton} onClick={handleShareFarcaster}>
                   <Share2 size={16} />
                   Farcaster
@@ -673,7 +673,7 @@ export default function CheckInPage() {
             {/* Share section */}
             <div style={styles.shareSection}>
               <div style={styles.shareTitle}>Share your check-in</div>
-              <div style={styles.shareButtons}>
+              <div style={styles.shareButtons} className="share-buttons-mobile">
                 <button style={styles.shareButton} onClick={handleShareFarcaster}>
                   <Share2 size={16} />
                   Farcaster
