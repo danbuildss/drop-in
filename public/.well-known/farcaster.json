@@ -1,0 +1,36 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "DropIn",
+    "iconUrl": "https://drop-in-nu.vercel.app/logo-icon.png",
+    "homeUrl": "https://drop-in-nu.vercel.app",
+    "splashImageUrl": "https://drop-in-nu.vercel.app/logo-icon.png",
+    "splashBackgroundColor": "#000000",
+    "subtitle": "On-chain giveaway draws",
+    "description": "Create verifiable on-chain giveaway draws at crypto events. Attendees check in with their wallet, winners are selected randomly on Base.",
+    "primaryCategory": "social",
+    "tags": [
+      "giveaway",
+      "events",
+      "base",
+      "onchain",
+      "web3"
+    ],
+    "heroImageUrl": "https://drop-in-nu.vercel.app/logo-full.png",
+    "tagline": "Fair giveaways on Base",
+    "ogTitle": "DropIn",
+    "ogDescription": "The fairest way to run giveaways at crypto events — verified on-chain on Base.",
+    "requiredChains": [
+      "eip155:8453"
+    ],
+    "requiredCapabilities": [
+      "actions.signIn",
+      "wallet.getEthereumProvider"
+    ]
+  }
+}
