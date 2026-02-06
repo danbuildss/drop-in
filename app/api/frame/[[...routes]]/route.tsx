@@ -34,7 +34,7 @@ import {
   parseAbiItem,
   type Address,
 } from "viem";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 
 // ── Contract config ──────────────────────────────────────────
 
@@ -62,8 +62,8 @@ const GIVEAWAY_WINNERS_EVENT = parseAbiItem(
 // ── Viem client (read-only, no wallet) ───────────────────────
 
 const client = createPublicClient({
-  chain: base,
-  transport: http("https://mainnet.base.org"),
+  chain: baseSepolia,
+  transport: http("https://sepolia.base.org"),
 });
 
 // ── Supabase URL for title lookup (optional enrichment) ──────
@@ -555,7 +555,7 @@ app.frame("/results", async (c) => {
       ),
       intents: [
         <Button.Link
-          href={`https://basescan.org/address/${CONTRACT}#events`}
+          href={`https://sepolia.basescan.org/address/${CONTRACT}#events`}
         >
           BaseScan
         </Button.Link>,

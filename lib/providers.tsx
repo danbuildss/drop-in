@@ -7,7 +7,7 @@
 import { type ReactNode, useState } from "react";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { base } from "viem/chains";
+import { baseSepolia } from "viem/chains";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -34,8 +34,8 @@ export function Providers({ children }: ProvidersProps) {
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
-        defaultChain: base,
-        supportedChains: [base],
+        defaultChain: baseSepolia,
+        supportedChains: [baseSepolia],
         walletConnectCloudProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
       }}
     >

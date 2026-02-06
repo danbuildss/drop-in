@@ -5,7 +5,7 @@
 import { encodeFunctionData, type Hex, type Address } from "viem";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Deployed contract address on Base
+//  Deployed contract address on Base Sepolia (testnet)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const DROP_IN_GIVEAWAY_ADDRESS: Address =
