@@ -5,6 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
@@ -488,6 +489,7 @@ function EventRow({ event, onSelect }: EventRowProps) {
 
 // ── Main Dashboard Component ──────────────────────────────────
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = usePrivy();
   const walletAddress = user?.wallet?.address as Address | undefined;
 
@@ -558,8 +560,8 @@ export default function DashboardPage() {
       setFormDescription("");
       setFormMaxAttendees("");
 
-      // Refresh events
-      await fetchEvents();
+      // Redirect to the new event's detail page for immediate next steps
+      router.push(`/giveaway/event/${chainEventId}`);
     } catch (err) {
       console.error("Failed to create event:", err);
     } finally {

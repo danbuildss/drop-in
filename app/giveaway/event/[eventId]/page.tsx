@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
@@ -21,6 +21,8 @@ import {
   QrCode,
   Maximize2,
   Share2,
+  Trash2,
+  X,
 } from "lucide-react";
 import { shareOnFarcaster, shareOnX, getWinnersShareText } from "@/lib/share";
 import Link from "next/link";
@@ -30,6 +32,7 @@ import {
   apiGetAttendees,
   apiCreateGiveaway,
   apiFinalizeGiveaway,
+  apiDeleteEvent,
   type ApiEventSummary,
   type ApiCheckIn,
 } from "@/lib/api";
@@ -369,11 +372,99 @@ const styles: Record<string, CSSProperties> = {
   shareButtonX: {
     background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
   },
+  deleteButton: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px 16px",
+    background: "var(--red-glow)",
+    border: "1px solid rgba(239, 68, 68, 0.3)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--red)",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all var(--transition-fast)",
+    width: "100%",
+    marginTop: "12px",
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.7)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    background: "var(--bg-surface)",
+    border: "1px solid var(--border-subtle)",
+    borderRadius: "var(--radius-lg)",
+    padding: "24px",
+    maxWidth: "400px",
+    width: "90%",
+  },
+  modalHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px",
+  },
+  modalIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "var(--radius-md)",
+    background: "var(--red-glow)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--red)",
+  },
+  modalTitle: {
+    fontSize: "18px",
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  },
+  modalText: {
+    fontSize: "14px",
+    color: "var(--text-secondary)",
+    lineHeight: 1.6,
+    marginBottom: "24px",
+  },
+  modalButtons: {
+    display: "flex",
+    gap: "12px",
+  },
+  modalCancel: {
+    flex: 1,
+    padding: "12px 16px",
+    background: "var(--bg-elevated)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    fontWeight: 500,
+    cursor: "pointer",
+  },
+  modalConfirm: {
+    flex: 1,
+    padding: "12px 16px",
+    background: "var(--red)",
+    border: "none",
+    borderRadius: "var(--radius-md)",
+    color: "white",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
 };
 
 // ── Main Component ────────────────────────────────────────────
 export default function EventManagementPage() {
   const params = useParams();
+  const router = useRouter();
   const eventId = params?.eventId as string;
   const { user } = usePrivy();
   const walletAddress = user?.wallet?.address;
@@ -387,6 +478,8 @@ export default function EventManagementPage() {
   const [winners, setWinners] = useState<string[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
 
   const checkInUrl = typeof window !== "undefined" 
     ? `${window.location.origin}/event/${eventId}` 
@@ -481,6 +574,21 @@ export default function EventManagementPage() {
   };
 
   const truncAddr = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
+  // Delete event
+  const handleDeleteEvent = async () => {
+    if (!event || !walletAddress) return;
+    
+    setDeleting(true);
+    try {
+      await apiDeleteEvent(event.chain_event_id, walletAddress);
+      router.push("/giveaway");
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   // Share handlers
   const handleShareFarcaster = () => {
@@ -770,8 +878,62 @@ export default function EventManagementPage() {
               View on BaseScan
             </a>
           )}
+
+          {/* Delete Event */}
+          {!event.giveaway_executed && (
+            <button
+              style={styles.deleteButton as React.CSSProperties}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              <Trash2 size={16} />
+              Delete Event
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={styles.modalOverlay as React.CSSProperties} onClick={() => setShowDeleteModal(false)}>
+          <div style={styles.modal as React.CSSProperties} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader as React.CSSProperties}>
+              <div style={styles.modalIcon as React.CSSProperties}>
+                <Trash2 size={20} />
+              </div>
+              <h3 style={styles.modalTitle as React.CSSProperties}>Delete Event</h3>
+            </div>
+            <p style={styles.modalText as React.CSSProperties}>
+              Are you sure you want to delete "{event.title}"? This will permanently remove the event and all associated check-ins. This action cannot be undone.
+            </p>
+            <div style={styles.modalButtons as React.CSSProperties}>
+              <button
+                style={styles.modalCancel as React.CSSProperties}
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  ...styles.modalConfirm as React.CSSProperties,
+                  opacity: deleting ? 0.7 : 1,
+                }}
+                onClick={handleDeleteEvent}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

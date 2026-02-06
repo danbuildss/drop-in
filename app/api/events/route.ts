@@ -82,3 +82,58 @@ export async function GET(req: NextRequest) {
     { status: 400 }
   );
 }
+
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const chainEventId = searchParams.get("chainEventId");
+  const organizer = searchParams.get("organizer");
+
+  if (!chainEventId || !organizer) {
+    return NextResponse.json(
+      { error: "chainEventId and organizer are required" },
+      { status: 400 }
+    );
+  }
+
+  // Verify the event belongs to this organizer before deleting
+  const { data: event, error: fetchError } = await supabaseAdmin
+    .from("events")
+    .select("*")
+    .eq("chain_event_id", Number(chainEventId))
+    .single();
+
+  if (fetchError || !event) {
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  }
+
+  if (event.organizer.toLowerCase() !== organizer.toLowerCase()) {
+    return NextResponse.json(
+      { error: "Not authorized to delete this event" },
+      { status: 403 }
+    );
+  }
+
+  // Delete associated check-ins first
+  await supabaseAdmin
+    .from("checkins")
+    .delete()
+    .eq("event_id", event.id);
+
+  // Delete associated giveaways
+  await supabaseAdmin
+    .from("giveaways")
+    .delete()
+    .eq("event_id", event.id);
+
+  // Delete the event
+  const { error: deleteError } = await supabaseAdmin
+    .from("events")
+    .delete()
+    .eq("id", event.id);
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, deleted: chainEventId });
+}

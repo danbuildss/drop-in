@@ -95,6 +95,17 @@ export async function apiGetEventsByOrganizer(
   return handleResponse<ApiEvent[]>(res);
 }
 
+export async function apiDeleteEvent(
+  chainEventId: number,
+  organizer: string
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `/api/events?chainEventId=${chainEventId}&organizer=${encodeURIComponent(organizer)}`,
+    { method: "DELETE" }
+  );
+  return handleResponse<{ success: boolean }>(res);
+}
+
 // ── Check-ins ────────────────────────────────────────────────
 
 export async function apiCheckIn(input: {

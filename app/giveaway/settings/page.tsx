@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useUpdateAccount } from "@privy-io/react-auth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   User,
@@ -17,9 +17,11 @@ import {
   BellOff,
   Hash,
   Shield,
-  LogOut,
   AlertTriangle,
   Trophy,
+  Plus,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import type { CSSProperties } from "react";
 
@@ -257,6 +259,36 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--text-muted)",
     fontStyle: "italic",
   },
+  linkButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 14px",
+    background: "var(--amber-glow)",
+    border: "1px solid rgba(59, 125, 221, 0.3)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--amber)",
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer",
+    transition: "all var(--transition-fast)",
+    flexShrink: 0,
+  },
+  unlinkButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 14px",
+    background: "var(--bg-elevated)",
+    border: "1px solid var(--border-default)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-muted)",
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer",
+    transition: "all var(--transition-fast)",
+    flexShrink: 0,
+  },
 };
 
 // ── Toggle Component ──────────────────────────────────────────
@@ -289,7 +321,7 @@ function Toggle({
 
 // ── Main Settings Component ───────────────────────────────────
 export default function SettingsPage() {
-  const { user, logout } = usePrivy();
+  const { user, logout, linkEmail, unlinkEmail } = usePrivy();
   const walletAddress = user?.wallet?.address ?? "";
   const emailAddress = user?.email?.address ?? "";
 
@@ -298,6 +330,9 @@ export default function SettingsPage() {
   const [defaultWinnerCount, setDefaultWinnerCount] = useState<string>("1");
   const [notifyGiveaway, setNotifyGiveaway] = useState<boolean>(true);
   const [notifyCheckin, setNotifyCheckin] = useState<boolean>(false);
+  const [linkingEmail, setLinkingEmail] = useState<boolean>(false);
+  const [unlinkingEmail, setUnlinkingEmail] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
   // Load preferences from localStorage
   useEffect(() => {
@@ -348,8 +383,34 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Sign out
-  const handleSignOut = () => {
+  // Link email
+  const handleLinkEmail = async () => {
+    setLinkingEmail(true);
+    try {
+      await linkEmail();
+    } catch (err) {
+      console.error("Failed to link email:", err);
+    } finally {
+      setLinkingEmail(false);
+    }
+  };
+
+  // Unlink email
+  const handleUnlinkEmail = async () => {
+    if (!user?.email?.address) return;
+    setUnlinkingEmail(true);
+    try {
+      await unlinkEmail(user.email.address);
+    } catch (err) {
+      console.error("Failed to unlink email:", err);
+    } finally {
+      setUnlinkingEmail(false);
+    }
+  };
+
+  // Delete account
+  const handleDeleteAccount = () => {
+    // Sign out and clear local data - in production, you'd call a delete API
     logout();
   };
 
@@ -411,6 +472,33 @@ export default function SettingsPage() {
                 <div style={styles.emptyValue}>No email linked</div>
               )}
             </div>
+            {emailAddress ? (
+              <button
+                style={styles.unlinkButton}
+                onClick={handleUnlinkEmail}
+                disabled={unlinkingEmail}
+              >
+                {unlinkingEmail ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Trash2 size={14} />
+                )}
+                Unlink
+              </button>
+            ) : (
+              <button
+                style={styles.linkButton}
+                onClick={handleLinkEmail}
+                disabled={linkingEmail}
+              >
+                {linkingEmail ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Plus size={14} />
+                )}
+                Link Email
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -484,22 +572,48 @@ export default function SettingsPage() {
       <section style={styles.section}>
         <div style={styles.dangerHeader}>
           <div style={styles.dangerIcon}>
-            <Shield size={18} />
+            <AlertTriangle size={18} />
           </div>
           <div style={styles.dangerTitle}>Danger Zone</div>
         </div>
         <div style={styles.dangerCard}>
           <div style={styles.dangerRow}>
             <div style={styles.dangerInfo}>
-              <div style={styles.dangerLabel}>Sign Out</div>
+              <div style={styles.dangerLabel}>Delete Account</div>
               <div style={styles.dangerDescription}>
-                Disconnect your wallet and sign out of DropIn
+                Permanently delete your account and all associated data. This cannot be undone.
               </div>
             </div>
-            <button style={styles.buttonDanger} onClick={handleSignOut}>
-              <LogOut size={14} />
-              Sign Out
-            </button>
+            {!showDeleteConfirm ? (
+              <button style={styles.buttonDanger} onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 size={14} />
+                Delete Account
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  style={{
+                    ...styles.buttonDanger,
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border-default)",
+                    color: "var(--text-secondary)",
+                  }}
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  style={{
+                    ...styles.buttonDanger,
+                    background: "var(--red)",
+                    color: "white",
+                  }}
+                  onClick={handleDeleteAccount}
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>

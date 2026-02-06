@@ -7,9 +7,9 @@
 
 :root {
   /* ═══ BRAND COLORS ═══ */
-  --blue-primary: #0052FF;      /* CTAs, Logo - softer blue */
-  --blue-base: #0066FF;         /* Headers, Nav, App chrome */
-  --blue-secondary: #60A5FA;    /* Links - lighter for readability */
+  --blue-primary: #3B7DDD;      /* CTAs, Logo - softer, muted blue */
+  --blue-base: #4A8FE8;         /* Headers, Nav, App chrome - gentler */
+  --blue-secondary: #7DB3F0;    /* Links - softer, easier on eyes */
   --green-win: #B6F569;         /* Win / Celebration */
   --green-settle: #4ADE80;      /* Confirmed / Settled */
   --amber-alert: #FBBF24;       /* Alert / Expired / Retry */
@@ -56,7 +56,7 @@
   /* Gradients */
   --gradient-amber: linear-gradient(135deg, var(--blue-primary) 0%, var(--blue-secondary) 100%);
   --gradient-primary: linear-gradient(135deg, var(--blue-primary) 0%, var(--blue-secondary) 100%);
-  --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 82, 255, 0.2), transparent);
+  --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 125, 221, 0.15), transparent);
   --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
   
   /* Typography */
@@ -103,7 +103,7 @@ body {
 
 /* ── Selection ─────────────────────────────────────────────── */
 ::selection {
-  background: rgba(0, 82, 255, 0.3);
+  background: rgba(59, 125, 221, 0.3);
   color: var(--text-primary);
 }
 
@@ -194,8 +194,8 @@ a {
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 82, 255, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(0, 82, 255, 0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 125, 221, 0.25); }
+  50% { box-shadow: 0 0 35px rgba(59, 125, 221, 0.4); }
 }
 
 @keyframes confetti {
@@ -247,7 +247,7 @@ input, textarea, select {
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--blue-primary);
-  box-shadow: 0 0 0 3px rgba(0, 0, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(59, 125, 221, 0.15);
 }
 
 input::placeholder, textarea::placeholder {

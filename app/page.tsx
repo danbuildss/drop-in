@@ -6,7 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { 
   Calendar, 
   QrCode, 
@@ -50,7 +50,7 @@ const styles: Record<string, CSSProperties> = {
     transform: "translateX(-50%)",
     width: "120%",
     height: "600px",
-    background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0, 82, 255, 0.15), transparent 70%)",
+    background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(59, 125, 221, 0.12), transparent 70%)",
     pointerEvents: "none",
   },
   nav: {
@@ -353,8 +353,15 @@ function FeatureCard({ icon, title, description, delay = 0 }: FeatureCardProps) 
 
 export default function LandingPage() {
   const router = useRouter();
-  const { login, authenticated } = usePrivy();
+  const { login, authenticated, ready } = usePrivy();
   const howItWorksRef = useRef<HTMLElement>(null);
+
+  // Redirect to dashboard after successful authentication
+  useEffect(() => {
+    if (ready && authenticated) {
+      router.push("/giveaway");
+    }
+  }, [ready, authenticated, router]);
 
   const handleGetStarted = () => {
     if (authenticated) {
