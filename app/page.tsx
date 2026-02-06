@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
+import { useRef } from "react";
 import { 
   Calendar, 
   QrCode, 
@@ -31,6 +32,7 @@ interface FeatureCardProps {
   icon: ReactNode;
   title: string;
   description: string;
+  delay?: number;
 }
 
 // ── Styles ────────────────────────────────────────────────────
@@ -334,9 +336,12 @@ function StepCard({ number, icon, title, description, delay }: StepCardProps) {
   );
 }
 
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, delay = 0 }: FeatureCardProps) {
   return (
-    <div style={styles.featureCard}>
+    <div 
+      style={{...styles.featureCard, opacity: 0, animationDelay: `${delay}ms`}} 
+      className="card-hover animate-fadeInUp"
+    >
       <div style={styles.featureIcon}>{icon}</div>
       <h4 style={styles.featureTitle}>{title}</h4>
       <p style={styles.featureDescription}>{description}</p>
@@ -349,6 +354,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
 export default function LandingPage() {
   const router = useRouter();
   const { login, authenticated } = usePrivy();
+  const howItWorksRef = useRef<HTMLElement>(null);
 
   const handleGetStarted = () => {
     if (authenticated) {
@@ -358,20 +364,24 @@ export default function LandingPage() {
     }
   };
 
+  const scrollToHowItWorks = () => {
+    howItWorksRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div style={styles.page}>
       {/* Hero glow effect */}
-      <div style={styles.heroGlow} />
+      <div style={styles.heroGlow} className="animate-pulse" />
 
       {/* Navigation */}
-      <nav style={styles.nav}>
+      <nav style={styles.nav} className="animate-fadeIn">
         <div style={styles.logo}>
           <img src="/logo-icon.png" alt="DropIn" style={{ width: "36px", height: "36px", borderRadius: "10px" }} />
           <span>DropIn</span>
         </div>
         <div style={styles.navLinks}>
-          <span style={styles.navLink}>How it works</span>
-          <span style={styles.navLink}>Docs</span>
+          <span style={{...styles.navLink, cursor: "pointer"}} onClick={scrollToHowItWorks}>How it works</span>
+          <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.navLink}>Docs</a>
           <button 
             style={styles.navButton}
             onClick={handleGetStarted}
@@ -383,25 +393,25 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section style={styles.hero}>
-        <div style={styles.badge}>
+        <div style={styles.badge} className="animate-fadeInUp">
           <Shield size={14} />
           Verified on Base
         </div>
-        <h1 style={styles.headline}>
+        <h1 style={{...styles.headline, opacity: 0, animationDelay: "100ms"}} className="animate-fadeInUp">
           The fairest way to run{" "}
           <span style={styles.headlineAccent}>giveaways</span>{" "}
           at crypto events
         </h1>
-        <p style={styles.subtitle}>
+        <p style={{...styles.subtitle, opacity: 0, animationDelay: "200ms"}} className="animate-fadeInUp">
           Create verifiable on-chain giveaway draws. Attendees check in with their wallet, 
           winners are selected randomly on-chain. Fully transparent, no trust required.
         </p>
-        <div style={styles.ctaGroup}>
-          <button style={styles.ctaPrimary} onClick={handleGetStarted}>
+        <div style={{...styles.ctaGroup, opacity: 0, animationDelay: "300ms"}} className="animate-fadeInUp">
+          <button style={styles.ctaPrimary} onClick={handleGetStarted} className="animate-glow">
             Get Started
             <ArrowRight size={18} />
           </button>
-          <button style={styles.ctaSecondary}>
+          <button style={styles.ctaSecondary} onClick={scrollToHowItWorks}>
             View Demo
             <ChevronRight size={18} />
           </button>
@@ -409,7 +419,7 @@ export default function LandingPage() {
       </section>
 
       {/* Steps Section */}
-      <section style={styles.stepsSection}>
+      <section ref={howItWorksRef} style={styles.stepsSection} id="how-it-works">
         <p style={styles.sectionLabel}>How it works</p>
         <h2 style={styles.sectionTitle}>Three simple steps</h2>
         <div style={styles.stepsGrid}>
@@ -446,16 +456,19 @@ export default function LandingPage() {
             icon={<Shield size={20} />}
             title="Fully On-Chain"
             description="Winner selection happens on Base. Anyone can verify the results on BaseScan."
+            delay={0}
           />
           <FeatureCard
             icon={<Zap size={20} />}
             title="Gasless Check-In"
             description="Attendees don't pay gas to check in. We handle the infrastructure costs."
+            delay={100}
           />
           <FeatureCard
             icon={<Users size={20} />}
             title="Multiple Login Options"
             description="Support for MetaMask, Coinbase Wallet, WalletConnect, email, and Google."
+            delay={200}
           />
         </div>
       </section>
@@ -467,9 +480,9 @@ export default function LandingPage() {
             © 2026 DropIn. Built on Base.
           </span>
           <div style={styles.footerLinks}>
-            <span style={styles.footerLink}>Documentation</span>
-            <span style={styles.footerLink}>GitHub</span>
-            <span style={styles.footerLink}>Twitter</span>
+            <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Documentation</a>
+            <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>GitHub</a>
+            <a href="https://x.com/whybasemedia" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Twitter</a>
           </div>
         </div>
       </footer>
