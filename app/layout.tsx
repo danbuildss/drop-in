@@ -7,11 +7,11 @@ import { Providers } from "@/lib/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DropIn — On-Chain Giveaway Draws",
-  description: "The fairest way to run giveaways at crypto events — verified on-chain on Base.",
+  title: "DropIn — Onchain Event Check-In",
+  description: "Scan. Register. Win. The fairest way to run event giveaways — verified on-chain on Base.",
   openGraph: {
-    title: "DropIn — On-Chain Giveaway Draws",
-    description: "The fairest way to run giveaways at crypto events — verified on-chain on Base.",
+    title: "DropIn — Onchain Event Check-In",
+    description: "Scan. Register. Win. The fairest way to run event giveaways — verified on-chain on Base.",
     type: "website",
   },
 };

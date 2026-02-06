@@ -6,10 +6,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* ═══ NEW BRAND COLORS ═══ */
-  --blue-primary: #0000FF;      /* CTAs, Logo */
-  --blue-base: #0052FF;         /* Headers, Nav, App chrome */
-  --blue-secondary: #3C8AFF;    /* Links */
+  /* ═══ BRAND COLORS ═══ */
+  --blue-primary: #0052FF;      /* CTAs, Logo - softer blue */
+  --blue-base: #0066FF;         /* Headers, Nav, App chrome */
+  --blue-secondary: #60A5FA;    /* Links - lighter for readability */
   --green-win: #B6F569;         /* Win / Celebration */
   --green-settle: #4ADE80;      /* Confirmed / Settled */
   --amber-alert: #FBBF24;       /* Alert / Expired / Retry */
@@ -40,8 +40,8 @@
   
   /* Legacy mappings (for existing component compatibility) */
   --amber: var(--blue-primary);
-  --amber-glow: rgba(0, 0, 255, 0.15);
-  --amber-glow-strong: rgba(0, 0, 255, 0.25);
+  --amber-glow: rgba(0, 102, 255, 0.12);
+  --amber-glow-strong: rgba(0, 102, 255, 0.2);
   --amber-200: var(--blue-secondary);
   --amber-400: var(--blue-base);
   

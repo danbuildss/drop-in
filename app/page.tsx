@@ -398,12 +398,11 @@ export default function LandingPage() {
           Verified on Base
         </div>
         <h1 style={{...styles.headline, opacity: 0, animationDelay: "100ms"}} className="animate-fadeInUp">
-          The fairest way to run{" "}
-          <span style={styles.headlineAccent}>giveaways</span>{" "}
-          at crypto events
+          <span style={styles.headlineAccent}>Scan. Register. Win.</span>{" "}
+          Onchain Event Check-In
         </h1>
         <p style={{...styles.subtitle, opacity: 0, animationDelay: "200ms"}} className="animate-fadeInUp">
-          Create verifiable on-chain giveaway draws. Attendees check in with their wallet, 
+          The fairest way to run giveaways at crypto events. Attendees check in with their wallet, 
           winners are selected randomly on-chain. Fully transparent, no trust required.
         </p>
         <div style={{...styles.ctaGroup, opacity: 0, animationDelay: "300ms"}} className="animate-fadeInUp">
