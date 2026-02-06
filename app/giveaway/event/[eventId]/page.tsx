@@ -478,6 +478,7 @@ export default function EventManagementPage() {
   const [winners, setWinners] = useState<string[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
+  const [copiedWinner, setCopiedWinner] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
 
@@ -531,6 +532,13 @@ export default function EventManagementPage() {
     navigator.clipboard.writeText(checkInUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Copy winner address
+  const handleCopyWinner = (address: string) => {
+    navigator.clipboard.writeText(address);
+    setCopiedWinner(address);
+    setTimeout(() => setCopiedWinner(null), 2000);
   };
 
   // Run giveaway (simplified - in production you'd use Privy's sendTransaction)
@@ -715,6 +723,21 @@ export default function EventManagementPage() {
                   <div key={winner} style={styles.winnerRow}>
                     <div style={styles.winnerRank}>#{i + 1}</div>
                     <div style={styles.winnerAddress}>{truncAddr(winner)}</div>
+                    <button
+                      style={{
+                        ...styles.iconButton,
+                        background: "transparent",
+                        border: "none",
+                      }}
+                      onClick={() => handleCopyWinner(winner)}
+                      title="Copy address"
+                    >
+                      {copiedWinner === winner ? (
+                        <CheckCircle size={14} style={{ color: "var(--green)" }} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                    </button>
                     <Trophy size={16} style={{ color: "var(--amber)" }} />
                   </div>
                 ))}

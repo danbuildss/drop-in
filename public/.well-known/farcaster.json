@@ -31,6 +31,15 @@
     "requiredCapabilities": [
       "actions.signIn",
       "wallet.getEthereumProvider"
-    ]
+    ],
+    "imageUrl": "https://drop-in-nu.vercel.app/og-image.png",
+    "screenshotUrls": [
+      "https://drop-in-nu.vercel.app/screenshots/screenshot1.png",
+      "https://drop-in-nu.vercel.app/screenshots/screenshot2.png",
+      "https://drop-in-nu.vercel.app/screenshots/screenshot3.png"
+    ],
+    "ogImageUrl": "https://drop-in-nu.vercel.app/og-image.png",
+    "webhookUrl": "https://drop-in-nu.vercel.app/api/webhook/farcaster",
+    "buttonTitle": "Open DropIn"
   }
 }
