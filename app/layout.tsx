@@ -9,10 +9,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DropIn — Onchain Event Check-In",
-  description: "Scan. Register. Win. The fairest way to run event giveaways — verified on-chain on Base.",
+  description: "Scan. Register. Win. The fairest way to run event giveaways — verified onchain on Base.",
   openGraph: {
     title: "DropIn — Onchain Event Check-In",
-    description: "Scan. Register. Win. The fairest way to run event giveaways — verified on-chain on Base.",
+    description: "Scan. Register. Win. The fairest way to run event giveaways — verified onchain on Base.",
     type: "website",
   },
 };

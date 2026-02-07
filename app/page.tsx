@@ -538,7 +538,7 @@ export default function LandingPage() {
         </h1>
         <p style={{...styles.subtitle, opacity: 0, animationDelay: "200ms"}} className="animate-fadeInUp">
           The fairest way to run giveaways at crypto events. Attendees check in with their wallet, 
-          winners are selected randomly on-chain. Fully transparent, no trust required.
+          winners are selected randomly onchain. Fully transparent, no trust required.
         </p>
         <div style={{...styles.ctaGroup, opacity: 0, animationDelay: "300ms"}} className="animate-fadeInUp">
           <button style={styles.ctaPrimary} onClick={handleGetStarted} className="animate-glow">
@@ -561,7 +561,7 @@ export default function LandingPage() {
             number={1}
             icon={<Calendar size={24} />}
             title="Create Event"
-            description="Organizer creates an event on-chain. Get a unique QR code to share with attendees."
+            description="Organizer creates an event onchain. Get a unique QR code to share with attendees."
             delay={0}
           />
           <StepCard
@@ -575,7 +575,7 @@ export default function LandingPage() {
             number={3}
             icon={<Trophy size={24} />}
             title="Draw Winners"
-            description="Run the giveaway on-chain. Winners are selected randomly and verifiable on BaseScan."
+            description="Run the giveaway onchain. Winners are selected randomly and verifiable on BaseScan."
             delay={200}
           />
         </div>
@@ -588,7 +588,7 @@ export default function LandingPage() {
         <div style={styles.featuresGrid}>
           <FeatureCard
             icon={<Shield size={20} />}
-            title="Fully On-Chain"
+            title="Fully Onchain"
             description="Winner selection happens on Base. Anyone can verify the results on BaseScan."
             delay={0}
           />
