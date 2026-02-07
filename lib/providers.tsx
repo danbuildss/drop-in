@@ -42,9 +42,9 @@ createAppKit({
   },
   themeMode: "dark",
   themeVariables: {
-    "--w3m-accent": "#F59E0B",
-    "--w3m-color-mix": "#F59E0B",
-    "--w3m-color-mix-strength": 20,
+    "--w3m-accent": "#3B7DDD",
+    "--w3m-color-mix": "#000000",
+    "--w3m-color-mix-strength": 40,
     "--w3m-border-radius-master": "2px",
   },
 });
