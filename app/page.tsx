@@ -665,7 +665,7 @@ export default function LandingPage() {
           <div style={styles.footerLinks} className="landing-footer-links">
             <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Documentation</a>
             <a href="https://github.com/danbuildss/drop-in" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>GitHub</a>
-            <a href="https://x.com/whybasemedia" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Twitter</a>
+            <a href="https://x.com/trydropin_xyz" target="_blank" rel="noopener noreferrer" style={styles.footerLink}>Twitter</a>
           </div>
         </div>
       </footer>
