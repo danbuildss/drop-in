@@ -20,11 +20,11 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 
-// Admin wallets that can access this page
-const ADMIN_WALLETS = [
-  "0xAA49d591b259324671792C8f972486403895Ff9b",
-  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25", // Dan
-].map(w => w.toLowerCase());
+// Admin wallets from env (comma-separated)
+const ADMIN_WALLETS = (process.env.NEXT_PUBLIC_ADMIN_WALLETS || "")
+  .split(",")
+  .map(w => w.trim().toLowerCase())
+  .filter(Boolean);
 
 interface Subscriber {
   id: string;

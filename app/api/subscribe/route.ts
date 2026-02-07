@@ -9,11 +9,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 
-// Admin wallets that can access subscriber list
-const ADMIN_WALLETS = [
-  "0xAA49d591b259324671792C8f972486403895Ff9b",
-  "0x84ea0b8d5b920e6a10043ab9c6f7500bcb2c9d25", // Dan
-].map(w => w.toLowerCase());
+// Admin wallets from env (server-side, comma-separated)
+const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || "")
+  .split(",")
+  .map(w => w.trim().toLowerCase())
+  .filter(Boolean);
 
 // Simple email validation
 function isValidEmail(email: string): boolean {
