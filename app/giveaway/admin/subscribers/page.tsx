@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Mail,
@@ -237,8 +237,8 @@ function truncateWallet(wallet: string | null): string {
 
 // ── Main Component ────────────────────────────────────────────
 export default function SubscribersPage() {
-  const { user } = usePrivy();
-  const walletAddress = user?.wallet?.address;
+  const { address } = useAccount();
+  const walletAddress = address;
 
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);

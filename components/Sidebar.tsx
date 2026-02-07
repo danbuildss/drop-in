@@ -6,7 +6,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount, useDisconnect } from "wagmi";
 import {
   LayoutDashboard,
   Calendar,
@@ -212,13 +212,14 @@ function NavItem({ href, icon, label, isActive }: NavItemProps) {
 // ── Main Sidebar Component ────────────────────────────────────
 export function Sidebar({ collapsed = false, onToggle, onClose, showClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = usePrivy();
+  const { address } = useAccount();
+  const { disconnect } = useDisconnect();
 
-  const walletAddress = user?.wallet?.address;
+  const walletAddress = address;
   const displayAddress = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : "";
-  const displayName = user?.email?.address || displayAddress || "User";
+  const displayName = displayAddress || "User";
 
   const isAdmin = walletAddress && ADMIN_WALLETS.includes(walletAddress.toLowerCase());
 
@@ -231,6 +232,10 @@ export function Sidebar({ collapsed = false, onToggle, onClose, showClose }: Sid
       { href: "/giveaway/admin/subscribers", icon: <Mail size={20} />, label: "Subscribers" },
     ] : []),
   ];
+
+  const handleLogout = () => {
+    disconnect();
+  };
 
   return (
     <aside
@@ -298,7 +303,7 @@ export function Sidebar({ collapsed = false, onToggle, onClose, showClose }: Sid
             </div>
           </div>
         )}
-        <button style={styles.logoutButton} onClick={logout}>
+        <button style={styles.logoutButton} onClick={handleLogout}>
           <LogOut size={20} />
           {!collapsed && "Sign Out"}
         </button>

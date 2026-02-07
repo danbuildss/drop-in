@@ -6,7 +6,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+import { useAppKit } from "@reown/appkit/react";
 import {
   CheckCircle,
   Users,
@@ -483,7 +484,9 @@ export default function CheckInPage() {
   const searchParams = useSearchParams();
   const eventId = params?.eventId as string;
   const qrToken = searchParams?.get("t") ?? undefined; // Rotating QR token
-  const { login, authenticated, user, ready } = usePrivy();
+  const { address: walletAddress, isConnected, isConnecting } = useAccount();
+  const { open } = useAppKit();
+  const ready = !isConnecting;
 
   // State
   const [event, setEvent] = useState<ApiEventSummary | null>(null);
@@ -497,9 +500,7 @@ export default function CheckInPage() {
   // Email capture state
   const [emailInput, setEmailInput] = useState<string>("");
   const [emailStatus, setEmailStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const userEmail = user?.email?.address;
-
-  const walletAddress = user?.wallet?.address;
+  const userEmail: string | undefined = undefined; // No email with wallet-only auth
   const displayAddress = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : "";
@@ -960,7 +961,7 @@ export default function CheckInPage() {
           </div>
 
           {/* Wallet connection / Check-in */}
-          {authenticated && walletAddress ? (
+          {isConnected && walletAddress ? (
             <>
               <div style={styles.walletInfo}>
                 <Wallet size={16} style={styles.walletIcon} />
@@ -988,7 +989,7 @@ export default function CheckInPage() {
               </button>
             </>
           ) : (
-            <button style={styles.buttonPrimary} onClick={login}>
+            <button style={styles.buttonPrimary} onClick={() => open()}>
               <Wallet size={18} />
               Connect Wallet to Check In
             </button>

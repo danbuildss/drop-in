@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Users,
@@ -466,8 +466,7 @@ export default function EventManagementPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params?.eventId as string;
-  const { user } = usePrivy();
-  const walletAddress = user?.wallet?.address;
+  const { address: walletAddress } = useAccount();
 
   // State
   const [event, setEvent] = useState<ApiEventSummary | null>(null);

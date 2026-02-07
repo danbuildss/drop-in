@@ -5,21 +5,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy, useUpdateAccount } from "@privy-io/react-auth";
+import { useAccount, useDisconnect } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   User,
   Wallet,
   Copy,
   CheckCircle,
-  Mail,
   Bell,
   BellOff,
   Hash,
-  Shield,
   AlertTriangle,
   Trophy,
-  Plus,
   Trash2,
   Loader2,
 } from "lucide-react";
@@ -259,36 +256,6 @@ const styles: Record<string, CSSProperties> = {
     color: "var(--text-muted)",
     fontStyle: "italic",
   },
-  linkButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 14px",
-    background: "var(--amber-glow)",
-    border: "1px solid rgba(59, 125, 221, 0.3)",
-    borderRadius: "var(--radius-md)",
-    color: "var(--amber)",
-    fontSize: "13px",
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all var(--transition-fast)",
-    flexShrink: 0,
-  },
-  unlinkButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 14px",
-    background: "var(--bg-elevated)",
-    border: "1px solid var(--border-default)",
-    borderRadius: "var(--radius-md)",
-    color: "var(--text-muted)",
-    fontSize: "13px",
-    fontWeight: 500,
-    cursor: "pointer",
-    transition: "all var(--transition-fast)",
-    flexShrink: 0,
-  },
 };
 
 // ── Toggle Component ──────────────────────────────────────────
@@ -321,17 +288,15 @@ function Toggle({
 
 // ── Main Settings Component ───────────────────────────────────
 export default function SettingsPage() {
-  const { user, logout, linkEmail, unlinkEmail } = usePrivy();
-  const walletAddress = user?.wallet?.address ?? "";
-  const emailAddress = user?.email?.address ?? "";
+  const { address } = useAccount();
+  const { disconnect } = useDisconnect();
+  const walletAddress = address ?? "";
 
   // State
   const [copied, setCopied] = useState<boolean>(false);
   const [defaultWinnerCount, setDefaultWinnerCount] = useState<string>("1");
   const [notifyGiveaway, setNotifyGiveaway] = useState<boolean>(true);
   const [notifyCheckin, setNotifyCheckin] = useState<boolean>(false);
-  const [linkingEmail, setLinkingEmail] = useState<boolean>(false);
-  const [unlinkingEmail, setUnlinkingEmail] = useState<boolean>(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
   // Load preferences from localStorage
@@ -383,35 +348,9 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Link email
-  const handleLinkEmail = async () => {
-    setLinkingEmail(true);
-    try {
-      await linkEmail();
-    } catch (err) {
-      console.error("Failed to link email:", err);
-    } finally {
-      setLinkingEmail(false);
-    }
-  };
-
-  // Unlink email
-  const handleUnlinkEmail = async () => {
-    if (!user?.email?.address) return;
-    setUnlinkingEmail(true);
-    try {
-      await unlinkEmail(user.email.address);
-    } catch (err) {
-      console.error("Failed to unlink email:", err);
-    } finally {
-      setUnlinkingEmail(false);
-    }
-  };
-
-  // Delete account
+  // Delete account (sign out)
   const handleDeleteAccount = () => {
-    // Sign out and clear local data - in production, you'd call a delete API
-    logout();
+    disconnect();
   };
 
   return (
@@ -428,13 +367,13 @@ export default function SettingsPage() {
           <div>
             <div style={styles.sectionTitle}>Profile</div>
             <div style={styles.sectionDescription}>
-              Your connected account details
+              Your connected wallet details
             </div>
           </div>
         </div>
         <div style={styles.card}>
           {/* Wallet Address */}
-          <div style={styles.cardRow}>
+          <div style={{ ...styles.cardRow, ...styles.cardRowLast }}>
             <div style={styles.rowIcon}>
               <Wallet size={16} />
             </div>
@@ -453,50 +392,6 @@ export default function SettingsPage() {
                 ) : (
                   <Copy size={16} />
                 )}
-              </button>
-            )}
-          </div>
-
-          {/* Email */}
-          <div style={{ ...styles.cardRow, ...styles.cardRowLast }}>
-            <div style={styles.rowIcon}>
-              <Mail size={16} />
-            </div>
-            <div style={styles.rowInfo}>
-              <div style={styles.rowLabel}>Email</div>
-              {emailAddress ? (
-                <div style={{ ...styles.rowValue, ...styles.rowValueNormal }}>
-                  {emailAddress}
-                </div>
-              ) : (
-                <div style={styles.emptyValue}>No email linked</div>
-              )}
-            </div>
-            {emailAddress ? (
-              <button
-                style={styles.unlinkButton}
-                onClick={handleUnlinkEmail}
-                disabled={unlinkingEmail}
-              >
-                {unlinkingEmail ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Trash2 size={14} />
-                )}
-                Unlink
-              </button>
-            ) : (
-              <button
-                style={styles.linkButton}
-                onClick={handleLinkEmail}
-                disabled={linkingEmail}
-              >
-                {linkingEmail ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Plus size={14} />
-                )}
-                Link Email
               </button>
             )}
           </div>
@@ -579,15 +474,15 @@ export default function SettingsPage() {
         <div style={styles.dangerCard}>
           <div style={styles.dangerRow}>
             <div style={styles.dangerInfo}>
-              <div style={styles.dangerLabel}>Delete Account</div>
+              <div style={styles.dangerLabel}>Sign Out</div>
               <div style={styles.dangerDescription}>
-                Permanently delete your account and all associated data. This cannot be undone.
+                Disconnect your wallet and sign out of the application.
               </div>
             </div>
             {!showDeleteConfirm ? (
               <button style={styles.buttonDanger} onClick={() => setShowDeleteConfirm(true)}>
                 <Trash2 size={14} />
-                Delete Account
+                Sign Out
               </button>
             ) : (
               <div style={{ display: "flex", gap: "8px" }}>
@@ -610,7 +505,7 @@ export default function SettingsPage() {
                   }}
                   onClick={handleDeleteAccount}
                 >
-                  Confirm Delete
+                  Confirm
                 </button>
               </div>
             )}

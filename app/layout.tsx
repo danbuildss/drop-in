@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────
-//  app/layout.tsx — Root layout with Privy provider
+//  app/layout.tsx — Root layout with Reown AppKit provider
 // ─────────────────────────────────────────────────────────────
 
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Providers } from "@/lib/providers";
 import "./globals.css";
 
@@ -20,11 +21,14 @@ interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const headersList = await headers();
+  const cookies = headersList.get("cookie");
+
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers cookies={cookies}>{children}</Providers>
       </body>
     </html>
   );

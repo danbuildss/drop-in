@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { Sidebar } from "./Sidebar";
 import { Menu, X } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
@@ -102,7 +102,7 @@ export function DashboardLayout({
   description 
 }: DashboardLayoutProps) {
   const router = useRouter();
-  const { ready, authenticated } = usePrivy();
+  const { isConnected, isConnecting } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -122,12 +122,12 @@ export function DashboardLayout({
   }, [title]);
 
   useEffect(() => {
-    if (ready && !authenticated) {
+    if (!isConnecting && !isConnected) {
       router.push("/");
     }
-  }, [ready, authenticated, router]);
+  }, [isConnecting, isConnected, router]);
 
-  if (!ready) {
+  if (isConnecting) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loadingSpinner} />
@@ -135,7 +135,7 @@ export function DashboardLayout({
     );
   }
 
-  if (!authenticated) {
+  if (!isConnected) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loadingSpinner} />

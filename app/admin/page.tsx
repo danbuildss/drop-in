@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────
 //  app/admin/page.tsx — Platform-wide Admin Analytics Dashboard
 //
-//  Hidden admin page accessible only to Dan's wallet.
+//  Hidden admin page accessible only to configured admin wallets.
 //  Access via URL: /admin
 // ─────────────────────────────────────────────────────────────
 
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Calendar,
@@ -362,8 +362,8 @@ function calculateGrowth(current: number, previous: number): { percent: number; 
 
 // ── Main Component ────────────────────────────────────────────
 export default function AdminDashboard() {
-  const { user, ready } = usePrivy();
-  const walletAddress = user?.wallet?.address;
+  const { address, isConnecting } = useAccount();
+  const walletAddress = address;
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -399,15 +399,15 @@ export default function AdminDashboard() {
   }, [walletAddress, isAdmin]);
 
   useEffect(() => {
-    if (ready && isAdmin) {
+    if (!isConnecting && isAdmin) {
       fetchStats();
-    } else if (ready && !isAdmin) {
+    } else if (!isConnecting && !isAdmin) {
       setLoading(false);
     }
-  }, [ready, isAdmin, fetchStats]);
+  }, [isConnecting, isAdmin, fetchStats]);
 
   // Unauthorized state
-  if (ready && !isAdmin) {
+  if (!isConnecting && !isAdmin) {
     return (
       <DashboardLayout title="Admin Dashboard" description="Platform analytics">
         <div style={styles.unauthorized}>
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
   }
 
   // Loading state
-  if (!ready || loading) {
+  if (isConnecting || loading) {
     return (
       <DashboardLayout title="Admin Dashboard" description="Platform analytics">
         <div style={styles.loadingContainer}>

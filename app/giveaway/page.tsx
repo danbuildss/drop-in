@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Calendar,
@@ -490,8 +490,8 @@ function EventRow({ event, onSelect }: EventRowProps) {
 // ── Main Dashboard Component ──────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
-  const { user } = usePrivy();
-  const walletAddress = user?.wallet?.address as Address | undefined;
+  const { address } = useAccount();
+  const walletAddress = address as Address | undefined;
 
   // State
   const [events, setEvents] = useState<ApiEventSummary[]>([]);
@@ -545,7 +545,7 @@ export default function DashboardPage() {
 
       // First create on-chain (this would require a transaction)
       // For now, we'll just create in the database
-      // In production, you'd use Privy's sendTransaction
+      // In production, you'd use wagmi's useWriteContract
 
       await apiCreateEvent({
         chainEventId,

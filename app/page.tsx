@@ -5,7 +5,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+import { useAppKit } from "@reown/appkit/react";
 import { useRef, useEffect, useState } from "react";
 import { 
   Calendar, 
@@ -446,7 +447,8 @@ function FeatureCard({ icon, title, description, delay = 0 }: FeatureCardProps) 
 
 export default function LandingPage() {
   const router = useRouter();
-  const { login, authenticated, ready } = usePrivy();
+  const { isConnected, isConnecting } = useAccount();
+  const { open } = useAppKit();
   const howItWorksRef = useRef<HTMLElement>(null);
 
   // Email capture state
@@ -456,16 +458,16 @@ export default function LandingPage() {
 
   // Redirect to dashboard after successful authentication
   useEffect(() => {
-    if (ready && authenticated) {
+    if (!isConnecting && isConnected) {
       router.push("/giveaway");
     }
-  }, [ready, authenticated, router]);
+  }, [isConnecting, isConnected, router]);
 
   const handleGetStarted = () => {
-    if (authenticated) {
+    if (isConnected) {
       router.push("/giveaway");
     } else {
-      login();
+      open();
     }
   };
 
@@ -519,7 +521,7 @@ export default function LandingPage() {
             style={styles.navButton}
             onClick={handleGetStarted}
           >
-            {authenticated ? "Dashboard" : "Sign In"}
+            {isConnected ? "Dashboard" : "Sign In"}
           </button>
         </div>
       </nav>
@@ -598,8 +600,8 @@ export default function LandingPage() {
           />
           <FeatureCard
             icon={<Users size={20} />}
-            title="Multiple Login Options"
-            description="Support for MetaMask, Coinbase Wallet, WalletConnect, email, and Google."
+            title="Multiple Wallet Options"
+            description="Support for MetaMask, Coinbase Wallet, WalletConnect, and 300+ wallets."
             delay={200}
           />
         </div>

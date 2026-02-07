@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   Calendar,
@@ -276,8 +276,8 @@ function EventCard({ event, onSelect }: EventCardProps) {
 // ── Main Events Page Component ────────────────────────────────
 export default function EventsPage() {
   const router = useRouter();
-  const { user } = usePrivy();
-  const walletAddress = user?.wallet?.address as Address | undefined;
+  const { address } = useAccount();
+  const walletAddress = address as Address | undefined;
 
   // State
   const [events, setEvents] = useState<ApiEventSummary[]>([]);
